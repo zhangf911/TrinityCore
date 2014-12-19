@@ -1,0 +1,3 @@
+cd TrinityCoreBuild
+cmake ../TrinityCore -G "Visual Studio 12 2013 Win64" -DBoost_INCLUDE_DIR=E:\boost_1_57_0 -DOPENSSL_INCLUDE_DIR=E:/OpenSSL-Build/Build-OpenSSL-VC-64/include -DLIB_EAY_DEBUG=E:/OpenSSL-Build/Build-OpenSSL-VC-64-dbg/lib/libeay32.lib -DLIB_EAY_RELEASE=E:/OpenSSL-Build/Build-OpenSSL-VC-64/lib/libeay32.lib -DSSL_EAY_DEBUG=E:/OpenSSL-Build/Build-OpenSSL-VC-64-dbg/lib/ssleay32.lib -DSSL_EAY_RELEASE=E:/OpenSSL-Build/Build-OpenSSL-VC-64/lib/ssleay32.lib -DMYSQL_INCLUDE_DIR=E:/mysql-5.5.24-winx64/include -DMYSQL_LIBRARY=E:/mysql-5.5.24-winx64/lib/libmysql.lib -DZMQ_ROOT_DIR=E:/ZeroMQ -DGIT_EXECUTABLE="D:/Program Files (x86)/Git/bin/git.exe" -DCMAKE_INSTALL_PREFIX=E:/WorkSpace/TrinityCore_Bin
+pause
