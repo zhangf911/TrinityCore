@@ -1,19 +1,19 @@
 /*
-* Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
@@ -51,7 +51,7 @@ public:
 
         void Reset() override
         {
-            lasher_clicked = false;
+            lasherClicked = false;
         }
 
         void OnSpellClick(Unit* clicker, bool& result) override
@@ -74,7 +74,7 @@ public:
             me->CastSpell(me, SPELL_STAND);
             me->GetMotionMaster()->MoveRandom(8.0f);
             events.ScheduleEvent(EVENT_CHECK_OOC, 20000);
-            lasher_clicked = true;
+            lasherClicked = true;
 
             if (Player* player = clicker->ToPlayer())
                 player->KilledMonsterCredit(NPC_WHISPERWIND_LASHER);
@@ -82,7 +82,7 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            if (!lasher_clicked)
+            if (!lasherClicked)
                 return;
 
             events.Update(diff);
@@ -104,7 +104,7 @@ public:
 
     private:
         EventMap events;
-        bool lasher_clicked;
+        bool lasherClicked = false;
     };
 
     CreatureAI* GetAI(Creature* creature) const override

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -20,6 +20,7 @@
 #define TRINITYCORE_CHAT_H
 
 #include "SharedDefines.h"
+#include "StringFormat.h"
 #include "WorldSession.h"
 #include "RBAC.h"
 #include "Packets/ChatPackets.h"
@@ -54,8 +55,6 @@ class ChatHandler
         explicit ChatHandler(WorldSession* session) : m_session(session), sentErrorMessage(false) { }
         virtual ~ChatHandler() { }
 
-        static void BuildChatPacket(WorldPackets::Chat::Chat* packet, ChatMsg chatType, Language language, WorldObject const* sender, WorldObject const* receiver, std::string const& message, uint32 achievementId = 0, std::string const& channelName = "", LocaleConstant locale = DEFAULT_LOCALE, std::string const& addonPrefix = "");
-
         static char* LineFromMessage(char*& pos) { char* start = strtok(pos, "\n"); pos = NULL; return start; }
 
         // function with different implementation for chat/console
@@ -63,9 +62,24 @@ class ChatHandler
         virtual void SendSysMessage(char const* str);
 
         void SendSysMessage(uint32 entry);
-        void PSendSysMessage(char const* format, ...) ATTR_PRINTF(2, 3);
-        void PSendSysMessage(uint32 entry, ...);
-        std::string PGetParseString(uint32 entry, ...) const;
+
+        template<typename... Args>
+        void PSendSysMessage(const char* fmt, Args const&... args)
+        {
+            SendSysMessage(Trinity::StringFormat(fmt, args...).c_str());
+        }
+
+        template<typename... Args>
+        void PSendSysMessage(uint32 entry, Args const&... args)
+        {
+            SendSysMessage(PGetParseString(entry, args...).c_str());
+        }
+
+        template<typename... Args>
+        std::string PGetParseString(uint32 entry, Args const&... args) const
+        {
+            return Trinity::StringFormat(GetTrinityString(entry), args...);
+        }
 
         bool ParseCommands(const char* text);
 

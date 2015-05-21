@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -65,7 +65,7 @@ public:
     virtual bool ValidateName(char* buffer, const char* context) override;
 
 protected:
-    std::string FormatName(uint8 index, ItemLocale const* locale, char* suffixStrings) const;
+    std::string FormatName(uint8 index, char* suffixStrings) const;
 
     ItemTemplate const* _item;
     int32 _data[8];

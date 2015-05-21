@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,10 +37,10 @@ namespace WorldPackets
 
             struct EuropaTicketConfig
             {
-                bool UnkBit0             = false;
-                bool UnkBit1             = false;
-                bool TicketSystemEnabled = false;
-                bool SubmitBugEnabled    = false;
+                bool TicketsEnabled     = false;
+                bool BugsEnabled        = false;
+                bool ComplaintsEnabled  = false;
+                bool SuggestionsEnabled = false;
 
                 SavedThrottleObjectState ThrottleState;
             };
@@ -69,13 +69,22 @@ namespace WorldPackets
             uint32 CfgRealmID                            = 0;
             uint8 ComplaintStatus                        = 0;
             int32 CfgRealmRecID                          = 0;
+            int32 UnkInt27                               = 0;
+            int32 TwitterMsTillCanPost                   = 0;
+            int32 TokenPollTimeSeconds                   = 0;
+            int32 TokenRedeemIndex                       = 0;
             bool ItemRestorationButtonEnabled        = false;
             bool CharUndeleteEnabled                 = false; ///< Implemented
             bool BpayStoreDisabledByParentalControls = false;
+            bool TwitterEnabled                      = false;
+            bool CommerceSystemEnabled               = false;
+            bool Unk67                               = false;
+            bool WillKickFromWorld                   = false;
 
-            bool UnkBit21                            = false;
-            bool UnkBit22                            = false;
+            bool RestrictedAccount                   = false;
+            bool TutorialsEnabled                    = false;
             bool UnkBit90                            = false;
+            bool UnkBit61                            = false;
         };
 
         class FeatureSystemStatusGlueScreen final : public ServerPacket
@@ -89,6 +98,11 @@ namespace WorldPackets
             bool BpayStoreDisabledByParentalControls = false; // NYI
             bool CharUndeleteEnabled                 = false;
             bool BpayStoreEnabled                    = false; // NYI
+            bool CommerceSystemEnabled               = false; // NYI
+            bool Unk14                               = false; // NYI
+            bool WillKickFromWorld                   = false; // NYI
+            int32 TokenPollTimeSeconds               = 0;     // NYI
+            int32 TokenRedeemIndex                   = 0;     // NYI
         };
 
         class MOTD final : public ServerPacket

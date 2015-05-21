@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -86,12 +86,21 @@ class ByteBuffer
         }
 
         ByteBuffer(ByteBuffer&& buf) : _rpos(buf._rpos), _wpos(buf._wpos),
-            _bitpos(buf._bitpos), _curbitval(buf._curbitval), _storage(std::move(buf._storage)) { }
+            _bitpos(buf._bitpos), _curbitval(buf._curbitval), _storage(buf.Move()) { }
 
         ByteBuffer(ByteBuffer const& right) : _rpos(right._rpos), _wpos(right._wpos),
             _bitpos(right._bitpos), _curbitval(right._curbitval), _storage(right._storage) { }
 
         ByteBuffer(MessageBuffer&& buffer);
+
+        std::vector<uint8>&& Move()
+        {
+            _rpos = 0;
+            _wpos = 0;
+            _bitpos = InitialBitPos;
+            _curbitval = 0;
+            return std::move(_storage);
+        }
 
         ByteBuffer& operator=(ByteBuffer const& right)
         {
@@ -107,12 +116,29 @@ class ByteBuffer
             return *this;
         }
 
+        ByteBuffer& operator=(ByteBuffer&& right)
+        {
+            if (this != &right)
+            {
+                _rpos = right._rpos;
+                _wpos = right._wpos;
+                _bitpos = right._bitpos;
+                _curbitval = right._curbitval;
+                _storage = right.Move();
+            }
+
+            return *this;
+        }
+
         virtual ~ByteBuffer() { }
 
         void clear()
         {
+            _rpos = 0;
+            _wpos = 0;
+            _bitpos = InitialBitPos;
+            _curbitval = 0;
             _storage.clear();
-            _rpos = _wpos = 0;
         }
 
         template <typename T> void append(T value)
@@ -170,16 +196,16 @@ class ByteBuffer
             return ((_curbitval >> (7-_bitpos)) & 1) != 0;
         }
 
-        template <typename T> void WriteBits(T value, size_t bits)
+        template <typename T> void WriteBits(T value, int32 bits)
         {
-            for (int32 i = bits-1; i >= 0; --i)
+            for (int32 i = bits - 1; i >= 0; --i)
                 WriteBit((value >> i) & 1);
         }
 
-        uint32 ReadBits(size_t bits)
+        uint32 ReadBits(int32 bits)
         {
             uint32 value = 0;
-            for (int32 i = bits-1; i >= 0; --i)
+            for (int32 i = bits - 1; i >= 0; --i)
                 if (ReadBit())
                     value |= (1 << (i));
 
@@ -518,6 +544,12 @@ class ByteBuffer
                 append(str.c_str(), len);
         }
 
+        void WriteString(char const* str, size_t len)
+        {
+            if (len)
+                append(str, len);
+        }
+
         uint32 ReadPackedTime()
         {
             uint32 packedDate = read<uint32>();
@@ -530,7 +562,7 @@ class ByteBuffer
             lt.tm_mon = (packedDate >> 20) & 0xF;
             lt.tm_year = ((packedDate >> 24) & 0x1F) + 100;
 
-            return uint32(mktime(&lt) + timezone);
+            return uint32(mktime(&lt));
         }
 
         ByteBuffer& ReadPackedTime(uint32& time)
@@ -780,17 +812,6 @@ template<>
 inline void ByteBuffer::read_skip<std::string>()
 {
     read_skip<char*>();
-}
-
-namespace boost
-{
-    namespace asio
-    {
-        inline const_buffers_1 buffer(ByteBuffer const& packet)
-        {
-            return buffer(packet.contents(), packet.size());
-        }
-    }
 }
 
 #endif

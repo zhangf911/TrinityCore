@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 #include "Opcodes.h"
 #include "World.h"
 
-UpdateData::UpdateData(uint16 map) : m_map(map), m_blockCount(0) { }
+UpdateData::UpdateData(uint32 map) : m_map(map), m_blockCount(0) { }
 
 void UpdateData::AddOutOfRangeGUID(GuidSet& guids)
 {
@@ -45,7 +45,7 @@ void UpdateData::AddUpdateBlock(const ByteBuffer &block)
 bool UpdateData::BuildPacket(WorldPacket* packet)
 {
     ASSERT(packet->empty());                                // shouldn't happen
-    packet->Initialize(SMSG_UPDATE_OBJECT, 2 + 4 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 4 + 9 * m_outOfRangeGUIDs.size()) + m_data.wpos(), CONNECTION_TYPE_INSTANCE);
+    packet->Initialize(SMSG_UPDATE_OBJECT, 2 + 4 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 4 + 9 * m_outOfRangeGUIDs.size()) + m_data.wpos());
 
     *packet << uint32(m_blockCount);
     *packet << uint16(m_map);

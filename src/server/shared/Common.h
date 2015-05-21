@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -38,6 +38,10 @@
 #include <queue>
 #include <sstream>
 #include <algorithm>
+#include <memory>
+
+#include <boost/optional.hpp>
+#include <boost/utility/in_place_factory.hpp>
 
 #include "Debugging/Errors.h"
 
@@ -114,13 +118,18 @@ enum LocaleConstant
     LOCALE_zhTW = 5,
     LOCALE_esES = 6,
     LOCALE_esMX = 7,
-    LOCALE_ruRU = 8
+    LOCALE_ruRU = 8,
+    LOCALE_none = 9,
+    LOCALE_ptBR = 10,
+    LOCALE_itIT = 11,
+
+    TOTAL_LOCALES
 };
 
-const uint8 TOTAL_LOCALES = 9;
+const uint8 OLD_TOTAL_LOCALES = 9; /// @todo convert in simple system
 #define DEFAULT_LOCALE LOCALE_enUS
 
-#define MAX_LOCALES 8
+#define MAX_LOCALES 11
 
 extern char const* localeNames[TOTAL_LOCALES];
 
@@ -128,22 +137,14 @@ LocaleConstant GetLocaleByName(const std::string& name);
 
 typedef std::vector<std::string> StringVector;
 
-#if defined(__GNUC__)
-#pragma pack(1)
-#else
 #pragma pack(push, 1)
-#endif
 
 struct LocalizedString
 {
     char const* Str[TOTAL_LOCALES];
 };
 
-#if defined(__GNUC__)
-#pragma pack()
-#else
 #pragma pack(pop)
-#endif
 
 // we always use stdlibc++ std::max/std::min, undefine some not C++ standard defines (Win API and some other platforms)
 #ifdef max
@@ -159,5 +160,19 @@ struct LocalizedString
 #endif
 
 #define MAX_QUERY_LEN 32*1024
+
+//! Optional helper class to wrap optional values within.
+template <typename T>
+using Optional = boost::optional<T>;
+
+namespace Trinity
+{
+    //! std::make_unique implementation (TODO: remove this once C++14 is supported)
+    template<typename T, typename ...Args>
+    std::unique_ptr<T> make_unique(Args&& ...args)
+    {
+        return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+    }
+}
 
 #endif

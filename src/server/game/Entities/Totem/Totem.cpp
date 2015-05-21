@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "SpellHistory.h"
 #include "SpellMgr.h"
 #include "SpellInfo.h"
 #include "WorldPacket.h"
@@ -124,7 +125,7 @@ void Totem::UnSummon(uint32 msTime)
         owner->SendAutoRepeatCancel(this);
 
         if (SpellInfo const* spell = sSpellMgr->GetSpellInfo(GetUInt32Value(UNIT_CREATED_BY_SPELL)))
-            owner->SendCooldownEvent(spell, 0, NULL, false);
+            GetSpellHistory()->SendCooldownEvent(spell, 0, nullptr, false);
 
         if (Group* group = owner->GetGroup())
         {
@@ -145,9 +146,10 @@ bool Totem::IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index) con
     /// @todo possibly all negative auras immune?
     if (GetEntry() == 5925)
         return false;
-
-    switch (spellInfo->Effects[index].ApplyAuraName)
+    if (SpellEffectInfo const* effect = spellInfo->GetEffect(GetMap()->GetDifficultyID(), index))
     {
+        switch (effect->ApplyAuraName)
+        {
         case SPELL_AURA_PERIODIC_DAMAGE:
         case SPELL_AURA_PERIODIC_LEECH:
         case SPELL_AURA_MOD_FEAR:
@@ -155,7 +157,10 @@ bool Totem::IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index) con
             return true;
         default:
             break;
+        }
     }
+    else
+        return true;
 
     return Creature::IsImmunedToSpellEffect(spellInfo, index);
 }

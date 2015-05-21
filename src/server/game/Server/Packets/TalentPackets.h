@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -41,7 +41,7 @@ namespace WorldPackets
         class UpdateTalentData final : public ServerPacket
         {
         public:
-            UpdateTalentData() : ServerPacket(SMSG_TALENTS_INFO, 2+4+4+4+12) { }
+            UpdateTalentData() : ServerPacket(SMSG_UPDATE_TALENT_DATA, 2+4+4+4+12) { }
 
             WorldPacket const* Write() override;
 
@@ -56,6 +56,19 @@ namespace WorldPackets
             void Read() override;
 
             uint32 SpecGroupIndex = 0;
+        };
+
+        class LearnTalents final : public ClientPacket
+        {
+        public:
+            LearnTalents(WorldPacket&& packet) : ClientPacket(std::move(packet))
+            {
+                ASSERT(packet.GetOpcode() == CMSG_LEARN_TALENTS);
+            }
+
+            void Read() override;
+            std::vector<uint16> Talents;
+
         };
     }
 }

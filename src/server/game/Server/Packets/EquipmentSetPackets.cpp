@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -40,9 +40,10 @@ WorldPacket const* WorldPackets::EquipmentSet::LoadEquipmentSet::Write()
 
         _worldPacket.WriteBits(equipSet->SetName.length(), 8);
         _worldPacket.WriteBits(equipSet->SetIcon.length(), 9);
+        _worldPacket.FlushBits();
+
         _worldPacket.WriteString(equipSet->SetName);
         _worldPacket.WriteString(equipSet->SetIcon);
-        _worldPacket.FlushBits();
     }
 
     return &_worldPacket;
@@ -62,4 +63,28 @@ void WorldPackets::EquipmentSet::SaveEquipmentSet::Read()
 
     Set.SetName = _worldPacket.ReadString(setNameLength);
     Set.SetIcon = _worldPacket.ReadString(setIconLength);
+}
+
+void WorldPackets::EquipmentSet::DeleteEquipmentSet::Read()
+{
+    _worldPacket >> ID;
+}
+
+void WorldPackets::EquipmentSet::UseEquipmentSet::Read()
+{
+    _worldPacket >> Inv;
+
+    for (uint8 i = 0; i < EQUIPMENT_SLOT_END; ++i)
+    {
+        _worldPacket >> Items[i].Item;
+        _worldPacket >> Items[i].ContainerSlot;
+        _worldPacket >> Items[i].Slot;
+    }
+}
+
+WorldPacket const* WorldPackets::EquipmentSet::UseEquipmentSetResult::Write()
+{
+    _worldPacket << uint8(Reason);
+
+    return &_worldPacket;
 }

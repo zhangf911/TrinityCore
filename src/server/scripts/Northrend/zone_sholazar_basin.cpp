@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -493,16 +493,15 @@ public:
             if (!quest)
                 return;
 
-            QuestStatusMap::const_iterator itr = player->getQuestStatusMap().find(QUEST_TASTE_TEST);
-            if (itr->second.Status != QUEST_STATUS_INCOMPLETE)
+            if (player->GetQuestStatus(QUEST_TASTE_TEST) != QUEST_STATUS_INCOMPLETE)
                 return;
 
-            for (uint8 i = 0; i < 3; ++i)
+            for (uint32 i = 0; i < quest->Objectives.size(); ++i)
             {
-                if (uint32(quest->RequiredNpcOrGo[i]) != me->GetEntry())
+                if (uint32(quest->Objectives[i].ObjectID) != me->GetEntry())
                     continue;
 
-                if (itr->second.CreatureOrGOCount[i] != 0)
+                if (player->GetQuestObjectiveData(quest, i) != 0)
                     continue;
 
                 player->KilledMonsterCredit(me->GetEntry());

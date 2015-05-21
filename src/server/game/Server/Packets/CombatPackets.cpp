@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,11 +31,21 @@ WorldPacket const* WorldPackets::Combat::AttackStart::Write()
     return &_worldPacket;
 }
 
+WorldPackets::Combat::SAttackStop::SAttackStop(Unit const* attacker, Unit const* victim) : ServerPacket(SMSG_ATTACK_STOP, 16 + 16 + 1)
+{
+    Attacker = attacker->GetGUID();
+    if (victim)
+    {
+        Victim = victim->GetGUID();
+        NowDead = victim->isDead();
+    }
+}
+
 WorldPacket const* WorldPackets::Combat::SAttackStop::Write()
 {
     _worldPacket << Attacker;
     _worldPacket << Victim;
-    _worldPacket.WriteBit(Dead);
+    _worldPacket.WriteBit(NowDead);
     _worldPacket.FlushBits();
 
     return &_worldPacket;
@@ -86,8 +96,8 @@ WorldPacket const* WorldPackets::Combat::AIReaction::Write()
 
 WorldPacket const* WorldPackets::Combat::AttackerStateUpdate::Write()
 {
-    if (_worldPacket.WriteBit(LogData.HasValue))
-        _worldPacket << LogData.Value;
+    if (_worldPacket.WriteBit(LogData.is_initialized()))
+        _worldPacket << *LogData;
 
     // Placeholder for size which will be calculated at the end based on packet size
     // Client uses this size to copy remaining packet to another CDataStore
@@ -99,15 +109,16 @@ WorldPacket const* WorldPackets::Combat::AttackerStateUpdate::Write()
     _worldPacket << VictimGUID;
     _worldPacket << Damage;
     _worldPacket << OverDamage;
-    if (_worldPacket.WriteBit(SubDmg.HasValue))
+
+    if (_worldPacket.WriteBit(SubDmg.is_initialized()))
     {
-        _worldPacket << SubDmg.Value.SchoolMask;
-        _worldPacket << SubDmg.Value.FDamage;
-        _worldPacket << SubDmg.Value.Damage;
+        _worldPacket << SubDmg->SchoolMask;
+        _worldPacket << SubDmg->FDamage;
+        _worldPacket << SubDmg->Damage;
         if (HitInfo & (HITINFO_FULL_ABSORB | HITINFO_PARTIAL_ABSORB))
-            _worldPacket << SubDmg.Value.Absorbed;
+            _worldPacket << SubDmg->Absorbed;
         if (HitInfo & (HITINFO_FULL_RESIST | HITINFO_PARTIAL_RESIST))
-            _worldPacket << SubDmg.Value.Resisted;
+            _worldPacket << SubDmg->Resisted;
     }
 
     _worldPacket << VictimState;
@@ -138,5 +149,52 @@ WorldPacket const* WorldPackets::Combat::AttackerStateUpdate::Write()
     // Update size placeholder
     _worldPacket.put<int32>(pos - sizeof(int32), _worldPacket.wpos() - pos);
 
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Combat::AttackSwingError::Write()
+{
+    _worldPacket.WriteBits(Reason, 2);
+    _worldPacket.FlushBits();
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Combat::PowerUpdate::Write()
+{
+    _worldPacket << Guid;
+    _worldPacket << uint32(Powers.size());
+    for (PowerUpdatePower const& power : Powers)
+    {
+        _worldPacket << power.Power;
+        _worldPacket << power.PowerType;
+    }
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Combat::SetSheathed::Read()
+{
+    _worldPacket >> CurrentSheathState;
+    Animate = _worldPacket.ReadBit();
+}
+
+WorldPacket const* WorldPackets::Combat::CancelAutoRepeat::Write()
+{
+    _worldPacket << Guid;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Combat::HealthUpdate::Write()
+{
+    _worldPacket << Guid;
+    _worldPacket << int32(Health);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Combat::ThreatClear::Write()
+{
+    _worldPacket << UnitGUID;
     return &_worldPacket;
 }

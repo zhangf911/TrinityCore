@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,7 +27,7 @@
 #include "BattlefieldMgr.h"
 
 /**
- * @fn void WorldSession::SendBfInvitePlayerToWar(uint64 guid, uint32 zoneId, uint32 acceptTime)
+ * @fn void WorldSession::SendBfInvitePlayerToWar(ObjectGuid guid, uint32 zoneId, uint32 acceptTime)
  *
  * @brief This send to player windows for invite player to join the war.
  *
@@ -37,7 +37,7 @@
  */
 void WorldSession::SendBfInvitePlayerToWar(ObjectGuid guid, uint32 zoneId, uint32 acceptTime)
 {
-    WorldPacket data(SMSG_BATTLEFIELD_MGR_ENTRY_INVITE, 16);
+    WorldPacket data(SMSG_BF_MGR_ENTRY_INVITE, 16);
 
     data.WriteBit(guid[5]);
     data.WriteBit(guid[3]);
@@ -62,7 +62,7 @@ void WorldSession::SendBfInvitePlayerToWar(ObjectGuid guid, uint32 zoneId, uint3
 }
 
 /**
- * @fn void WorldSession::SendBfInvitePlayerToQueue(uint64 guid)
+ * @fn void WorldSession::SendBfInvitePlayerToQueue(ObjectGuid guid)
  *
  * @brief This send invitation to player to join the queue.
  *
@@ -70,7 +70,7 @@ void WorldSession::SendBfInvitePlayerToWar(ObjectGuid guid, uint32 zoneId, uint3
  */
 void WorldSession::SendBfInvitePlayerToQueue(ObjectGuid guid)
 {
-    WorldPacket data(SMSG_BATTLEFIELD_MGR_QUEUE_INVITE, 5);
+    WorldPacket data(SMSG_BF_MGR_QUEUE_INVITE, 5);
 
     data.WriteBit(1);               // unk
     data.WriteBit(0);               // Has Warmup
@@ -103,7 +103,7 @@ void WorldSession::SendBfInvitePlayerToQueue(ObjectGuid guid)
 }
 
 /**
- * @fn void WorldSession::SendBfQueueInviteResponse(uint64 guid, uint32 zoneId, bool canQueue, bool full)
+ * @fn void WorldSession::SendBfQueueInviteResponse(ObjectGuid guid, uint32 zoneId, bool canQueue, bool full)
  *
  * @brief This send packet for inform player that he join queue.
  *
@@ -117,7 +117,7 @@ void WorldSession::SendBfQueueInviteResponse(ObjectGuid guid, uint32 zoneId, boo
     const bool hasSecondGuid = false;
     const bool warmup = true;
 
-    WorldPacket data(SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE, 16);
+    WorldPacket data(SMSG_BF_MGR_QUEUE_REQUEST_RESPONSE, 16);
 
     data.WriteBit(guid[1]);
     data.WriteBit(guid[6]);
@@ -157,7 +157,7 @@ void WorldSession::SendBfQueueInviteResponse(ObjectGuid guid, uint32 zoneId, boo
 }
 
 /**
- * @fn void WorldSession::SendBfEntered(uint64 guid)
+ * @fn void WorldSession::SendBfEntered(ObjectGuid guid)
  *
  * @brief This is call when player accept to join war.
  *
@@ -167,7 +167,7 @@ void WorldSession::SendBfEntered(ObjectGuid guid)
 {
     uint8 isAFK = _player->isAFK() ? 1 : 0;
 
-    WorldPacket data(SMSG_BATTLEFIELD_MGR_ENTERED, 11);
+    WorldPacket data(SMSG_BF_MGR_ENTERING, 11);
 
     data.WriteBit(0);               // unk
     data.WriteBit(isAFK);           // Clear AFK
@@ -196,7 +196,7 @@ void WorldSession::SendBfEntered(ObjectGuid guid)
 }
 
 /**
- * @fn void WorldSession::SendBfLeaveMessage(uint64 guid, BFLeaveReason reason)
+ * @fn void WorldSession::SendBfLeaveMessage(ObjectGuid guid, BFLeaveReason reason)
  *
  * @brief This is call when player leave battlefield zone.
  *
@@ -205,7 +205,7 @@ void WorldSession::SendBfEntered(ObjectGuid guid)
  */
 void WorldSession::SendBfLeaveMessage(ObjectGuid guid, BFLeaveReason reason /*= BF_LEAVE_REASON_EXITED*/)
 {
-    WorldPacket data(SMSG_BATTLEFIELD_MGR_EJECTED, 11);
+    WorldPacket data(SMSG_BF_MGR_EJECTED, 11);
 
     data.WriteBit(guid[2]);
     data.WriteBit(guid[5]);

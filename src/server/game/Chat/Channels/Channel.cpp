@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -17,13 +17,14 @@
  */
 
 #include "Channel.h"
+#include "AccountMgr.h"
+#include "ChannelPackets.h"
 #include "Chat.h"
+#include "DatabaseEnv.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "SocialMgr.h"
 #include "World.h"
-#include "DatabaseEnv.h"
-#include "AccountMgr.h"
-#include "Player.h"
 
 Channel::Channel(std::string const& name, uint32 channelId, uint32 team):
     _announce(true),
@@ -209,8 +210,8 @@ void Channel::JoinChannel(Player* player, std::string const& pass)
     //notify.ChannelWelcomeMsg = "";
     notify.ChatChannelID = _channelId;
     //notify.InstanceID = 0;
-    notify.ChannelFlags = _flags;
-    notify.Channel = _name;
+    notify._ChannelFlags = _flags;
+    notify._Channel = _name;
     player->SendDirectMessage(notify.Write());
 
     JoinNotify(player);
@@ -541,12 +542,13 @@ void Channel::List(Player const* player)
         player->GetSession()->GetPlayerInfo().c_str(), GetName().c_str());
 
     WorldPackets::Channel::ChannelListResponse list;
-    list.Display = true; /// always true?
-    list.Channel = GetName();
-    list.ChannelFlags = GetFlags();
+    list._Display = true; /// always true?
+    list._Channel = GetName();
+    list._ChannelFlags = GetFlags();
 
     uint32 gmLevelInWhoList = sWorld->getIntConfig(CONFIG_GM_LEVEL_IN_WHO_LIST);
 
+    list._Members.reserve(_playersStore.size());
     for (PlayerContainer::value_type const& i : _playersStore)
     {
         Player* member = ObjectAccessor::FindConnectedPlayer(i.first);
@@ -558,7 +560,7 @@ void Channel::List(Player const* player)
              member->GetSession()->GetSecurity() <= AccountTypes(gmLevelInWhoList)) &&
             member->IsVisibleGloballyFor(player))
         {
-            list.Members.emplace_back(i.second.PlayerGuid, GetVirtualRealmAddress(), i.second.GetFlags());
+            list._Members.emplace_back(i.second.PlayerGuid, GetVirtualRealmAddress(), i.second.GetFlags());
         }
     }
 
@@ -624,10 +626,10 @@ void Channel::Say(ObjectGuid const& guid, std::string const& what, uint32 lang)
 
     WorldPackets::Chat::Chat packet;
     if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
-        ChatHandler::BuildChatPacket(&packet, CHAT_MSG_CHANNEL, Language(lang), player, player, what, 0, _name);
+        packet.Initialize(CHAT_MSG_CHANNEL, Language(lang), player, player, what, 0, _name);
     else
     {
-        ChatHandler::BuildChatPacket(&packet, CHAT_MSG_CHANNEL, Language(lang), NULL, NULL, what, 0,  _name);
+        packet.Initialize(CHAT_MSG_CHANNEL, Language(lang), nullptr, nullptr, what, 0, _name);
         packet.SenderGUID = guid;
         packet.TargetGUID = guid;
     }
@@ -725,6 +727,34 @@ void Channel::SetOwner(ObjectGuid const& guid, bool exclaim)
     }
 }
 
+void Channel::SilenceAll(Player const* /*player*/, std::string const& /*name*/)
+{
+}
+
+void Channel::SilenceVoice(Player const* /*player*/, std::string const& /*name*/)
+{
+}
+
+void Channel::UnsilenceAll(Player const* /*player*/, std::string const& /*name*/)
+{
+}
+
+void Channel::UnsilenceVoice(Player const* /*player*/, std::string const& /*name*/)
+{
+}
+
+void Channel::DeclineInvite(Player const* /*player*/)
+{
+}
+
+void Channel::Voice(Player const* /*player*/)
+{
+}
+
+void Channel::DeVoice(Player const* /*player*/)
+{
+}
+
 void Channel::SendToAll(WorldPacket const* data, ObjectGuid const& guid)
 {
     for (PlayerContainer::value_type const& i : _playersStore)
@@ -747,20 +777,10 @@ void Channel::SendToOne(WorldPacket const* data, ObjectGuid const& who)
         player->SendDirectMessage(data);
 }
 
-void Channel::Voice(ObjectGuid const& /*guid1*/, ObjectGuid const& /*guid2*/)
-{
-
-}
-
-void Channel::DeVoice(ObjectGuid const& /*guid1*/, ObjectGuid const& /*guid2*/)
-{
-
-}
-
 void Channel::MakeNotifyPacket(WorldPackets::Channel::ChannelNotify& data, uint8 notifyType)
 {
     data.Type = notifyType;
-    data.Channel = _name;
+    data._Channel = _name;
 }
 
 void Channel::MakeJoined(WorldPackets::Channel::ChannelNotify& data, ObjectGuid const& guid)
@@ -970,30 +990,66 @@ void Channel::MakeVoiceOff(WorldPackets::Channel::ChannelNotify& data, ObjectGui
 void Channel::JoinNotify(Player const* player)
 {
     ObjectGuid const& guid = player->GetGUID();
-    WorldPacket data(IsConstant() ? SMSG_USERLIST_ADD : SMSG_USERLIST_UPDATE, 8 + 1 + 1 + 4 + GetName().size());
-    data << guid;
-    data << uint8(GetPlayerFlags(guid));
-    data << uint8(GetFlags());
-    data << uint32(GetNumPlayers());
-    data << GetName();
 
     if (IsConstant())
-        SendToAllButOne(&data, guid);
+    {
+        WorldPackets::Channel::UserlistAdd userlistAdd;
+        userlistAdd.AddedUserGUID = guid;
+        userlistAdd.ChannelFlags = GetFlags();
+        userlistAdd.UserFlags = GetPlayerFlags(guid);
+        userlistAdd.ChannelID = GetChannelId();
+        userlistAdd.ChannelName = GetName();
+        SendToAllButOne(userlistAdd.Write(), guid);
+    }
     else
-        SendToAll(&data);
+    {
+        WorldPackets::Channel::UserlistUpdate userlistUpdate;
+        userlistUpdate.UpdatedUserGUID = guid;
+        userlistUpdate.ChannelFlags = GetFlags();
+        userlistUpdate.UserFlags = GetPlayerFlags(guid);
+        userlistUpdate.ChannelID = GetChannelId();
+        userlistUpdate.ChannelName = GetName();
+        SendToAll(userlistUpdate.Write());
+    }
 }
 
 void Channel::LeaveNotify(Player const* player)
 {
     ObjectGuid const& guid = player->GetGUID();
-    WorldPacket data(SMSG_USERLIST_REMOVE, 8 + 1 + 4 + GetName().size());
-    data << guid;
-    data << uint8(GetFlags());
-    data << uint32(GetNumPlayers());
-    data << GetName();
+    WorldPackets::Channel::UserlistRemove userlistRemove;
+    userlistRemove.RemovedUserGUID = guid;
+    userlistRemove.ChannelFlags = GetFlags();
+    userlistRemove.ChannelID = GetChannelId();
+    userlistRemove.ChannelName = GetName();
 
     if (IsConstant())
-        SendToAllButOne(&data, guid);
+        SendToAllButOne(userlistRemove.Write(), guid);
     else
-        SendToAll(&data);
+        SendToAll(userlistRemove.Write());
+}
+
+void Channel::SetModerator(ObjectGuid const& guid, bool set)
+{
+    if (_playersStore[guid].IsModerator() != set)
+    {
+        uint8 oldFlag = _playersStore[guid].GetFlags();
+        _playersStore[guid].SetModerator(set);
+
+        WorldPackets::Channel::ChannelNotify data;
+        MakeModeChange(data, guid, oldFlag, _playersStore[guid].GetFlags());
+        SendToAll(data.Write());
+    }
+}
+
+void Channel::SetMute(ObjectGuid const& guid, bool set)
+{
+    if (_playersStore[guid].IsMuted() != set)
+    {
+        uint8 oldFlag = _playersStore[guid].GetFlags();
+        _playersStore[guid].SetMuted(set);
+
+        WorldPackets::Channel::ChannelNotify data;
+        MakeModeChange(data, guid, oldFlag, _playersStore[guid].GetFlags());
+        SendToAll(data.Write());
+    }
 }

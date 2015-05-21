@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -32,10 +32,11 @@ namespace Trinity
 
             void operator()(WorldPacket& data, LocaleConstant locale)
             {
-                BroadcastText const* bct = sObjectMgr->GetBroadcastText(_textId);
+                BroadcastTextEntry const* bct = sBroadcastTextStore.LookupEntry(_textId);
                 WorldPackets::Chat::Chat packet;
-                ChatHandler::BuildChatPacket(&packet, _msgType, bct ? Language(bct->Language) : LANG_UNIVERSAL, _source, _target, bct ? bct->GetText(locale, _source->getGender()) : "", _achievementId, "", locale);
-                data = *packet.Write();
+                packet.Initialize(_msgType, bct ? Language(bct->Language) : LANG_UNIVERSAL, _source, _target, bct ? DB2Manager::GetBroadcastTextValue(bct, locale, _source->getGender()) : "", _achievementId, "", locale);
+                packet.Write();
+                data = packet.Move();
             }
 
         private:
@@ -55,8 +56,9 @@ namespace Trinity
             void operator()(WorldPacket& data, LocaleConstant locale)
             {
                 WorldPackets::Chat::Chat packet;
-                ChatHandler::BuildChatPacket(&packet, _msgType, _language, _source, _target, _text, 0, "", locale);
-                data = *packet.Write();
+                packet.Initialize(_msgType, _language, _source, _target, _text, 0, "", locale);
+                packet.Write();
+                data = packet.Move();
             }
 
         private:

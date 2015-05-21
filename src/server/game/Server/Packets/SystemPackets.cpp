@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,41 +25,59 @@ WorldPacket const* WorldPackets::System::FeatureSystemStatus::Write()
     _worldPacket << uint32(ScrollOfResurrectionMaxRequestsPerDay);
     _worldPacket << uint32(CfgRealmID);
     _worldPacket << int32(CfgRealmRecID);
+    _worldPacket << uint32(UnkInt27);
+    _worldPacket << uint32(TwitterMsTillCanPost);
+    _worldPacket << uint32(TokenPollTimeSeconds);
+    _worldPacket << uint32(TokenRedeemIndex);
 
     _worldPacket.WriteBit(VoiceEnabled);
-    _worldPacket.WriteBit(EuropaTicketSystemStatus.HasValue);
+    _worldPacket.WriteBit(EuropaTicketSystemStatus.is_initialized());
     _worldPacket.WriteBit(ScrollOfResurrectionEnabled);
     _worldPacket.WriteBit(BpayStoreEnabled);
     _worldPacket.WriteBit(BpayStoreAvailable);
     _worldPacket.WriteBit(BpayStoreDisabledByParentalControls);
     _worldPacket.WriteBit(ItemRestorationButtonEnabled);
     _worldPacket.WriteBit(BrowserEnabled);
-    _worldPacket.WriteBit(SessionAlert.HasValue);
+    _worldPacket.WriteBit(SessionAlert.is_initialized());
     _worldPacket.WriteBit(RecruitAFriendSendingEnabled);
     _worldPacket.WriteBit(CharUndeleteEnabled);
-    _worldPacket.WriteBit(UnkBit21);
-    _worldPacket.WriteBit(UnkBit22);
+    _worldPacket.WriteBit(RestrictedAccount);
+    _worldPacket.WriteBit(TutorialsEnabled);
     _worldPacket.WriteBit(UnkBit90);
+    _worldPacket.WriteBit(TwitterEnabled);
+    _worldPacket.WriteBit(CommerceSystemEnabled);
+    _worldPacket.WriteBit(Unk67);
+    _worldPacket.WriteBit(WillKickFromWorld);
+    _worldPacket.WriteBit(UnkBit61);
 
-    if (EuropaTicketSystemStatus.HasValue)
+    _worldPacket.FlushBits();
+
+    if (EuropaTicketSystemStatus)
     {
-        _worldPacket.WriteBit(EuropaTicketSystemStatus.Value.UnkBit0);
-        _worldPacket.WriteBit(EuropaTicketSystemStatus.Value.UnkBit1);
-        _worldPacket.WriteBit(EuropaTicketSystemStatus.Value.TicketSystemEnabled);
-        _worldPacket.WriteBit(EuropaTicketSystemStatus.Value.SubmitBugEnabled);
+        _worldPacket.WriteBit(EuropaTicketSystemStatus->TicketsEnabled);
+        _worldPacket.WriteBit(EuropaTicketSystemStatus->BugsEnabled);
+        _worldPacket.WriteBit(EuropaTicketSystemStatus->ComplaintsEnabled);
+        _worldPacket.WriteBit(EuropaTicketSystemStatus->SuggestionsEnabled);
 
-        _worldPacket << uint32(EuropaTicketSystemStatus.Value.ThrottleState.MaxTries);
-        _worldPacket << uint32(EuropaTicketSystemStatus.Value.ThrottleState.PerMilliseconds);
-        _worldPacket << uint32(EuropaTicketSystemStatus.Value.ThrottleState.TryCount);
-        _worldPacket << uint32(EuropaTicketSystemStatus.Value.ThrottleState.LastResetTimeBeforeNow);
+        _worldPacket << uint32(EuropaTicketSystemStatus->ThrottleState.MaxTries);
+        _worldPacket << uint32(EuropaTicketSystemStatus->ThrottleState.PerMilliseconds);
+        _worldPacket << uint32(EuropaTicketSystemStatus->ThrottleState.TryCount);
+        _worldPacket << uint32(EuropaTicketSystemStatus->ThrottleState.LastResetTimeBeforeNow);
     }
 
-    if (SessionAlert.HasValue)
+    if (SessionAlert)
     {
-        _worldPacket << int32(SessionAlert.Value.Delay);
-        _worldPacket << int32(SessionAlert.Value.Period);
-        _worldPacket << int32(SessionAlert.Value.DisplayTime);
+        _worldPacket << int32(SessionAlert->Delay);
+        _worldPacket << int32(SessionAlert->Period);
+        _worldPacket << int32(SessionAlert->DisplayTime);
     }
+
+    /*if (bit61)
+    {
+        var int88 = packet.ReadInt32("int88");
+        for (int i = 0; i < int88; i++)
+            packet.ReadByte("byte23", i);
+    }*/
 
     _worldPacket.FlushBits();
 
@@ -72,7 +90,13 @@ WorldPacket const* WorldPackets::System::FeatureSystemStatusGlueScreen::Write()
     _worldPacket.WriteBit(BpayStoreAvailable);
     _worldPacket.WriteBit(BpayStoreDisabledByParentalControls);
     _worldPacket.WriteBit(CharUndeleteEnabled);
+    _worldPacket.WriteBit(CommerceSystemEnabled);
+    _worldPacket.WriteBit(Unk14);
+    _worldPacket.WriteBit(WillKickFromWorld);
     _worldPacket.FlushBits();
+
+    _worldPacket << int32(TokenPollTimeSeconds);
+    _worldPacket << int32(TokenRedeemIndex);
 
     return &_worldPacket;
 }
@@ -97,6 +121,8 @@ WorldPacket const* WorldPackets::System::SetTimeZoneInformation::Write()
 {
     _worldPacket.WriteBits(ServerTimeTZ.length(), 7);
     _worldPacket.WriteBits(GameTimeTZ.length(), 7);
+    _worldPacket.FlushBits();
+
     _worldPacket.WriteString(ServerTimeTZ);
     _worldPacket.WriteString(GameTimeTZ);
 

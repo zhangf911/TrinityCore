@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -313,7 +313,7 @@ public:
         {
             uint32 factionid = target->getFaction();
             uint32 flag      = target->GetUInt32Value(UNIT_FIELD_FLAGS);
-            uint32 npcflag   = target->GetUInt32Value(UNIT_NPC_FLAGS);
+            uint64 npcflag   = target->GetUInt64Value(UNIT_NPC_FLAGS);
             uint32 dyflag    = target->GetUInt32Value(OBJECT_DYNAMIC_FLAGS);
             handler->PSendSysMessage(LANG_CURRENT_FACTION, target->GetGUID().ToString().c_str(), factionid, flag, npcflag, dyflag);
             return true;
@@ -330,11 +330,11 @@ public:
 
         char* pnpcflag = strtok(NULL, " ");
 
-        uint32 npcflag;
+        uint64 npcflag;
         if (!pnpcflag)
-            npcflag = target->GetUInt32Value(UNIT_NPC_FLAGS);
+            npcflag = target->GetUInt64Value(UNIT_NPC_FLAGS);
         else
-            npcflag = atoi(pnpcflag);
+            npcflag = std::strtoull(pnpcflag, nullptr, 10);
 
         char* pdyflag = strtok(NULL, " ");
 
@@ -355,7 +355,7 @@ public:
 
         target->setFaction(factionid);
         target->SetUInt32Value(UNIT_FIELD_FLAGS, flag);
-        target->SetUInt32Value(UNIT_NPC_FLAGS, npcflag);
+        target->SetUInt64Value(UNIT_NPC_FLAGS, npcflag);
         target->SetUInt32Value(OBJECT_DYNAMIC_FLAGS, dyflag);
 
         return true;
@@ -418,7 +418,7 @@ public:
     }
 
     //Edit Player TP
-    static bool HandleModifyTalentCommand (ChatHandler* handler, const char* args)
+    static bool HandleModifyTalentCommand(ChatHandler* /*handler*/, const char* /*args*/)
     {
         /* TODO: 6.x remove this
         if (!*args)
@@ -1279,10 +1279,13 @@ public:
         uint32 phase = (uint32)atoi((char*)args);
 
         Unit* target = handler->getSelectedUnit();
-        if (target)
-            target->SetInPhase(phase, true, !target->IsInPhase(phase));
-        else
-            handler->GetSession()->GetPlayer()->SetInPhase(phase, true, !handler->GetSession()->GetPlayer()->IsInPhase(phase));
+        if (!target)
+            target = handler->GetSession()->GetPlayer();
+
+        target->SetInPhase(phase, true, !target->IsInPhase(phase));
+
+        if (target->GetTypeId() == TYPEID_PLAYER)
+            target->ToPlayer()->SendUpdatePhasing();
 
         return true;
     }
@@ -1345,7 +1348,7 @@ public:
 
         // Set gender
         target->SetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER, gender);
-        target->SetByteValue(PLAYER_BYTES_3, 0, gender);
+        target->SetByteValue(PLAYER_BYTES_3, PLAYER_BYTES_3_OFFSET_GENDER, gender);
 
         // Change display ID
         target->InitDisplayIds();

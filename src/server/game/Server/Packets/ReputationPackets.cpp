@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +27,24 @@ WorldPacket const* WorldPackets::Reputation::InitializeFactions::Write()
 
     for (uint16 i = 0; i < FactionCount; ++i)
         _worldPacket.WriteBit(FactionHasBonus[i]);
+
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Reputation::ForcedReaction const& forcedReaction)
+{
+    data << int32(forcedReaction.Faction);
+    data << int32(forcedReaction.Reaction);
+    return data;
+}
+
+WorldPacket const* WorldPackets::Reputation::SetForcedReactions::Write()
+{
+    _worldPacket.WriteBits(Reactions.size(), 6);
+    for (ForcedReaction const& reaction : Reactions)
+        _worldPacket << reaction;
 
     _worldPacket.FlushBits();
 

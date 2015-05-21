@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -19,6 +19,7 @@
 #include "WorldSocket.h"
 #include "AuthenticationPackets.h"
 #include "BigNumber.h"
+#include "CharacterPackets.h"
 #include "Opcodes.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -55,8 +56,8 @@ uint32 const SizeOfClientHeader[2][2] =
 uint32 const SizeOfServerHeader[2] = { sizeof(uint16) + sizeof(uint32), sizeof(uint32) };
 
 WorldSocket::WorldSocket(tcp::socket&& socket) : Socket(std::move(socket)),
-    _type(CONNECTION_TYPE_REALM), _authSeed(rand32()),
-    _OverSpeedPings(0), _worldSession(nullptr), _initialized(false)
+    _type(CONNECTION_TYPE_REALM), _authSeed(rand32()), _OverSpeedPings(0),
+    _worldSession(nullptr), _authed(false), _compressionStream(nullptr), _initialized(false)
 {
     _headerBuffer.Resize(SizeOfClientHeader[0][0]);
 }
@@ -80,8 +81,8 @@ void WorldSocket::Start()
     initializer.Write(&header, sizeof(header.Setup.Size));
     initializer.Write(ServerConnectionInitialize.c_str(), ServerConnectionInitialize.length());
 
-    std::unique_lock<std::mutex> dummy(_writeLock, std::defer_lock);
-    QueuePacket(std::move(initializer), dummy);
+    std::unique_lock<std::mutex> guard(_writeLock);
+    QueuePacket(std::move(initializer), guard);
 }
 
 void WorldSocket::HandleSendAuthSession()
@@ -95,7 +96,15 @@ void WorldSocket::HandleSendAuthSession()
     memcpy(&challenge.DosChallenge[4], _decryptSeed.AsByteArray(16).get(), 16);
     challenge.DosZeroBits = 1;
 
-    SendPacket(*challenge.Write());
+    SendPacketAndLogOpcode(*challenge.Write());
+}
+
+void WorldSocket::OnClose()
+{
+    {
+        std::lock_guard<std::mutex> sessionGuard(_worldSessionLock);
+        _worldSession = nullptr;
+    }
 }
 
 void WorldSocket::ReadHandler()
@@ -122,7 +131,10 @@ void WorldSocket::ReadHandler()
 
             // We just received nice new header
             if (!ReadHeaderHandler())
+            {
+                CloseSocket();
                 return;
+            }
         }
 
         // We have full read header, now check the data payload
@@ -143,7 +155,10 @@ void WorldSocket::ReadHandler()
 
         // just received fresh new payload
         if (!ReadDataHandler())
+        {
+            CloseSocket();
             return;
+        }
 
         _headerBuffer.Reset();
     }
@@ -167,6 +182,13 @@ void WorldSocket::ExtractOpcodeAndSize(ClientPktHeader const* header, uint32& op
     }
 }
 
+void WorldSocket::SetWorldSession(WorldSession* session)
+{
+    std::lock_guard<std::mutex> sessionGuard(_worldSessionLock);
+    _worldSession = session;
+    _authed = true;
+}
+
 bool WorldSocket::ReadHeaderHandler()
 {
     ASSERT(_headerBuffer.GetActiveSize() == SizeOfClientHeader[_initialized][_authCrypt.IsInitialized()], "Header size " SZFMTD " different than expected %u", _headerBuffer.GetActiveSize(), SizeOfClientHeader[_initialized][_authCrypt.IsInitialized()]);
@@ -181,17 +203,8 @@ bool WorldSocket::ReadHeaderHandler()
 
     if (!ClientPktHeader::IsValidSize(size) || (_initialized && !ClientPktHeader::IsValidOpcode(opcode)))
     {
-        if (_worldSession)
-        {
-            Player* player = _worldSession->GetPlayer();
-            TC_LOG_ERROR("network", "WorldSocket::ReadHeaderHandler(): client (account: %u, char [%s, name: %s]) sent malformed packet (size: %u, cmd: %u)",
-                _worldSession->GetAccountId(), player ? player->GetGUID().ToString().c_str() : "GUID: Empty", player ? player->GetName().c_str() : "<none>", size, opcode);
-        }
-        else
-            TC_LOG_ERROR("network", "WorldSocket::ReadHeaderHandler(): client %s sent malformed packet (size: %u, cmd: %u)",
-                GetRemoteIpAddress().to_string().c_str(), size, opcode);
-
-        CloseSocket();
+        TC_LOG_ERROR("network", "WorldSocket::ReadHeaderHandler(): client %s sent malformed packet (size: %u, cmd: %u)",
+            GetRemoteIpAddress().to_string().c_str(), size, opcode);
         return false;
     }
 
@@ -211,26 +224,27 @@ bool WorldSocket::ReadDataHandler()
 
         OpcodeClient opcode = static_cast<OpcodeClient>(cmd);
 
-        std::string opcodeName = GetOpcodeNameForLogging(opcode);
-
         WorldPacket packet(opcode, std::move(_packetBuffer), GetConnectionType());
 
         if (sPacketLog->CanLogPacket())
             sPacketLog->LogPacket(packet, CLIENT_TO_SERVER, GetRemoteIpAddress(), GetRemotePort(), GetConnectionType());
 
-        TC_LOG_TRACE("network.opcode", "C->S: %s %s", (_worldSession ? _worldSession->GetPlayerInfo() : GetRemoteIpAddress().to_string()).c_str(), opcodeName.c_str());
+        std::unique_lock<std::mutex> sessionGuard(_worldSessionLock, std::defer_lock);
 
         switch (opcode)
         {
             case CMSG_PING:
-                HandlePing(packet);
-                break;
+                LogOpcodeText(opcode, sessionGuard);
+                return HandlePing(packet);
             case CMSG_AUTH_SESSION:
             {
-                if (_worldSession)
+                LogOpcodeText(opcode, sessionGuard);
+                if (_authed)
                 {
-                    TC_LOG_ERROR("network", "WorldSocket::ProcessIncoming: received duplicate CMSG_AUTH_SESSION from %s", _worldSession->GetPlayerInfo().c_str());
-                    break;
+                    // locking just to safely log offending user is probably overkill but we are disconnecting him anyway
+                    if (sessionGuard.try_lock())
+                        TC_LOG_ERROR("network", "WorldSocket::ProcessIncoming: received duplicate CMSG_AUTH_SESSION from %s", _worldSession->GetPlayerInfo().c_str());
+                    return false;
                 }
 
                 WorldPackets::Auth::AuthSession authSession(std::move(packet));
@@ -240,10 +254,13 @@ bool WorldSocket::ReadDataHandler()
             }
             case CMSG_AUTH_CONTINUED_SESSION:
             {
-                if (_worldSession)
+                LogOpcodeText(opcode, sessionGuard);
+                if (_authed)
                 {
-                    TC_LOG_ERROR("network", "WorldSocket::ProcessIncoming: received duplicate CMSG_AUTH_CONTINUED_SESSION from %s", _worldSession->GetPlayerInfo().c_str());
-                    break;
+                    // locking just to safely log offending user is probably overkill but we are disconnecting him anyway
+                    if (sessionGuard.try_lock())
+                        TC_LOG_ERROR("network", "WorldSocket::ProcessIncoming: received duplicate CMSG_AUTH_CONTINUED_SESSION from %s", _worldSession->GetPlayerInfo().c_str());
+                    return false;
                 }
 
                 WorldPackets::Auth::AuthContinuedSession authSession(std::move(packet));
@@ -251,38 +268,36 @@ bool WorldSocket::ReadDataHandler()
                 HandleAuthContinuedSession(authSession);
                 break;
             }
-                /*
             case CMSG_KEEP_ALIVE:
-                TC_LOG_DEBUG("network", "%s", opcodeName.c_str());
-                sScriptMgr->OnPacketReceive(_worldSession, packet);
+                LogOpcodeText(opcode, sessionGuard);
                 break;
-            */
             case CMSG_LOG_DISCONNECT:
+                LogOpcodeText(opcode, sessionGuard);
                 packet.rfinish();   // contains uint32 disconnectReason;
-                TC_LOG_DEBUG("network", "%s", opcodeName.c_str());
-                sScriptMgr->OnPacketReceive(_worldSession, packet);
                 return true;
             case CMSG_ENABLE_NAGLE:
+                LogOpcodeText(opcode, sessionGuard);
+                SetNoDelay(false);
+                break;
+            case CMSG_CONNECT_TO_FAILED:
             {
-                TC_LOG_DEBUG("network", "%s", opcodeName.c_str());
-                sScriptMgr->OnPacketReceive(_worldSession, packet);
-                if (_worldSession)
-                    _worldSession->HandleEnableNagleAlgorithm();
+                sessionGuard.lock();
+
+                LogOpcodeText(opcode, sessionGuard);
+                WorldPackets::Auth::ConnectToFailed connectToFailed(std::move(packet));
+                connectToFailed.Read();
+                HandleConnectToFailed(connectToFailed);
                 break;
             }
             default:
             {
+                sessionGuard.lock();
+
+                LogOpcodeText(opcode, sessionGuard);
+
                 if (!_worldSession)
                 {
                     TC_LOG_ERROR("network.opcode", "ProcessIncoming: Client not authed opcode = %u", uint32(opcode));
-                    CloseSocket();
-                    return false;
-                }
-
-                // prevent invalid memory access/crash with custom opcodes
-                if (static_cast<uint32>(opcode) >= NUM_OPCODE_HANDLERS)
-                {
-                    CloseSocket();
                     return false;
                 }
 
@@ -307,10 +322,7 @@ bool WorldSocket::ReadDataHandler()
     {
         std::string initializer(reinterpret_cast<char const*>(_packetBuffer.GetReadPointer()), std::min(_packetBuffer.GetActiveSize(), ClientConnectionInitialize.length()));
         if (initializer != ClientConnectionInitialize)
-        {
-            CloseSocket();
             return false;
-        }
 
         _compressionStream = new z_stream();
         _compressionStream->zalloc = (alloc_func)NULL;
@@ -322,7 +334,6 @@ bool WorldSocket::ReadDataHandler()
         if (z_res != Z_OK)
         {
             TC_LOG_ERROR("network", "Can't initialize packet compression (zlib: deflateInit) Error code: %i (%s)", z_res, zError(z_res));
-            CloseSocket();
             return false;
         }
 
@@ -335,6 +346,25 @@ bool WorldSocket::ReadDataHandler()
     return true;
 }
 
+void WorldSocket::LogOpcodeText(OpcodeClient opcode, std::unique_lock<std::mutex> const& guard) const
+{
+    if (!guard)
+    {
+        TC_LOG_TRACE("network.opcode", "C->S: %s %s", GetRemoteIpAddress().to_string().c_str(), GetOpcodeNameForLogging(opcode).c_str());
+    }
+    else
+    {
+        TC_LOG_TRACE("network.opcode", "C->S: %s %s", (_worldSession ? _worldSession->GetPlayerInfo() : GetRemoteIpAddress().to_string()).c_str(),
+            GetOpcodeNameForLogging(opcode).c_str());
+    }
+}
+
+void WorldSocket::SendPacketAndLogOpcode(WorldPacket const& packet)
+{
+    TC_LOG_TRACE("network.opcode", "S->C: %s %s", GetRemoteIpAddress().to_string().c_str(), GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet.GetOpcode())).c_str());
+    SendPacket(packet);
+}
+
 void WorldSocket::SendPacket(WorldPacket const& packet)
 {
     if (!IsOpen())
@@ -342,8 +372,6 @@ void WorldSocket::SendPacket(WorldPacket const& packet)
 
     if (sPacketLog->CanLogPacket())
         sPacketLog->LogPacket(packet, SERVER_TO_CLIENT, GetRemoteIpAddress(), GetRemotePort(), GetConnectionType());
-
-    TC_LOG_TRACE("network.opcode", "S->C: %s %s", (_worldSession ? _worldSession->GetPlayerInfo() : GetRemoteIpAddress().to_string()).c_str(), GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet.GetOpcode())).c_str());
 
     uint32 packetSize = packet.size();
     uint32 sizeOfHeader = SizeOfServerHeader[_authCrypt.IsInitialized()];
@@ -621,7 +649,7 @@ void WorldSocket::HandleAuthSession(WorldPackets::Auth::AuthSession& authSession
     if (allowedAccountType > SEC_PLAYER && AccountTypes(security) < allowedAccountType)
     {
         SendAuthResponseError(AUTH_UNAVAILABLE);
-        TC_LOG_INFO("network", "WorldSocket::HandleAuthSession: User tries to login but his security level is not enough");
+        TC_LOG_DEBUG("network", "WorldSocket::HandleAuthSession: User tries to login but his security level is not enough");
         sScriptMgr->OnFailedAccountLogin(id);
         DelayedCloseSocket();
         return;
@@ -652,6 +680,7 @@ void WorldSocket::HandleAuthSession(WorldPackets::Auth::AuthSession& authSession
     // At this point, we can safely hook a successful login
     sScriptMgr->OnAccountLogin(id);
 
+    _authed = true;
     _worldSession = new WorldSession(id, battlenetAccountId, shared_from_this(), AccountTypes(security), expansion, mutetime, locale, recruiter, isRecruiter);
     _worldSession->LoadGlobalAccountData();
     _worldSession->LoadTutorialsData();
@@ -702,32 +731,55 @@ void WorldSocket::HandleAuthContinuedSession(WorldPackets::Auth::AuthContinuedSe
         return;
     }
 
-    _worldSession = sWorld->FindSession(accountId);
-    if (!_worldSession)
+    sWorld->AddInstanceSocket(shared_from_this(), accountId);
+}
+
+void WorldSocket::HandleConnectToFailed(WorldPackets::Auth::ConnectToFailed& connectToFailed)
+{
+    if (_worldSession)
     {
-        SendAuthResponseError(AUTH_SESSION_EXPIRED);
-        TC_LOG_ERROR("network", "WorldSocket::HandleAuthContinuedSession: No active session found for account: %u ('%s') address: %s", accountId, login.c_str(), GetRemoteIpAddress().to_string().c_str());
-        DelayedCloseSocket();
-        return;
+        if (_worldSession->PlayerLoading())
+        {
+            switch (connectToFailed.Serial)
+            {
+                case WorldPackets::Auth::ConnectToSerial::WorldAttempt1:
+                    _worldSession->SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt2);
+                    break;
+                case WorldPackets::Auth::ConnectToSerial::WorldAttempt2:
+                    _worldSession->SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt3);
+                    break;
+                case WorldPackets::Auth::ConnectToSerial::WorldAttempt3:
+                    _worldSession->SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt4);
+                    break;
+                case WorldPackets::Auth::ConnectToSerial::WorldAttempt4:
+                    _worldSession->SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt5);
+                    break;
+                case WorldPackets::Auth::ConnectToSerial::WorldAttempt5:
+                {
+                    TC_LOG_ERROR("network", "%s failed to connect 5 times to world socket, aborting login", _worldSession->GetPlayerInfo().c_str());
+                    _worldSession->AbortLogin(WorldPackets::Character::LoginFailureReason::NoWorld);
+                    break;
+                }
+                default:
+                    return;
+            }
+        }
+        //else
+        //{
+        //    transfer_aborted when/if we get map node redirection
+        //    SendPacketAndLogOpcode(*WorldPackets::Auth::ResumeComms().Write());
+        //}
     }
-
-    WorldPackets::Auth::ResumeComms resumeComms;
-    SendPacket(*resumeComms.Write());
-
-    _worldSession->AddInstanceConnection(shared_from_this());
-    _worldSession->HandleContinuePlayerLogin();
 }
 
 void WorldSocket::SendAuthResponseError(uint8 code)
 {
     WorldPackets::Auth::AuthResponse response;
-    response.SuccessInfo.HasValue = false;
-    response.WaitInfo.HasValue = false;
     response.Result = code;
-    SendPacket(*response.Write());
+    SendPacketAndLogOpcode(*response.Write());
 }
 
-void WorldSocket::HandlePing(WorldPacket& recvPacket)
+bool WorldSocket::HandlePing(WorldPacket& recvPacket)
 {
     uint32 ping;
     uint32 latency;
@@ -756,13 +808,14 @@ void WorldSocket::HandlePing(WorldPacket& recvPacket)
 
             if (maxAllowed && _OverSpeedPings > maxAllowed)
             {
+                std::unique_lock<std::mutex> sessionGuard(_worldSessionLock);
+
                 if (_worldSession && !_worldSession->HasPermission(rbac::RBAC_PERM_SKIP_CHECK_OVERSPEED_PING))
                 {
                     TC_LOG_ERROR("network", "WorldSocket::HandlePing: %s kicked for over-speed pings (address: %s)",
                         _worldSession->GetPlayerInfo().c_str(), GetRemoteIpAddress().to_string().c_str());
 
-                    CloseSocket();
-                    return;
+                    return false;
                 }
             }
         }
@@ -770,20 +823,23 @@ void WorldSocket::HandlePing(WorldPacket& recvPacket)
             _OverSpeedPings = 0;
     }
 
-    if (_worldSession)
     {
-        _worldSession->SetLatency(latency);
-        _worldSession->ResetClientTimeDelay();
-    }
-    else
-    {
-        TC_LOG_ERROR("network", "WorldSocket::HandlePing: peer sent CMSG_PING, but is not authenticated or got recently kicked, address = %s", GetRemoteIpAddress().to_string().c_str());
+        std::lock_guard<std::mutex> sessionGuard(_worldSessionLock);
 
-        CloseSocket();
-        return;
+        if (_worldSession)
+        {
+            _worldSession->SetLatency(latency);
+            _worldSession->ResetClientTimeDelay();
+        }
+        else
+        {
+            TC_LOG_ERROR("network", "WorldSocket::HandlePing: peer sent CMSG_PING, but is not authenticated or got recently kicked, address = %s", GetRemoteIpAddress().to_string().c_str());
+            return false;
+        }
     }
 
     WorldPacket packet(SMSG_PONG, 4);
     packet << ping;
-    return SendPacket(packet);
+    SendPacketAndLogOpcode(packet);
+    return true;
 }

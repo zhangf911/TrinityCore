@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,6 +19,7 @@
 
 #include "Packet.h"
 #include "Player.h"
+#include "ItemPackets.h"
 
 namespace WorldPackets
 {
@@ -27,7 +28,7 @@ namespace WorldPackets
         class EquipmentSetID final : public ServerPacket
         {
         public:
-            EquipmentSetID() : ServerPacket(SMSG_EQUIPMENT_SET_SAVED, 8 + 4) { }
+            EquipmentSetID() : ServerPacket(SMSG_EQUIPMENT_SET_ID, 8 + 4) { }
 
             WorldPacket const* Write() override;
 
@@ -38,7 +39,7 @@ namespace WorldPackets
         class LoadEquipmentSet final : public ServerPacket
         {
         public:
-            LoadEquipmentSet() : ServerPacket(SMSG_EQUIPMENT_SET_LIST, 4) { }
+            LoadEquipmentSet() : ServerPacket(SMSG_LOAD_EQUIPMENT_SET, 4) { }
 
             WorldPacket const* Write() override;
 
@@ -48,11 +49,49 @@ namespace WorldPackets
         class SaveEquipmentSet final : public ClientPacket
         {
         public:
-            SaveEquipmentSet(WorldPacket&& packet) : ClientPacket(CMSG_EQUIPMENT_SET_SAVE, std::move(packet)) { }
+            SaveEquipmentSet(WorldPacket&& packet) : ClientPacket(CMSG_SAVE_EQUIPMENT_SET, std::move(packet)) { }
 
             void Read() override;
 
             EquipmentSetInfo::EquipmentSetData Set;
+        };
+
+        class DeleteEquipmentSet final : public ClientPacket
+        {
+        public:
+            DeleteEquipmentSet(WorldPacket&& packet) : ClientPacket(CMSG_DELETE_EQUIPMENT_SET, std::move(packet)) { }
+
+            void Read() override;
+
+            uint64 ID = 0;
+        };
+
+        class UseEquipmentSet final : public ClientPacket
+        {
+        public:
+            UseEquipmentSet(WorldPacket&& packet) : ClientPacket(CMSG_USE_EQUIPMENT_SET, std::move(packet)) { }
+
+            void Read() override;
+
+            struct EquipmentSetItem
+            {
+                ObjectGuid Item;
+                uint8 ContainerSlot     = 0;
+                uint8 Slot              = 0;
+            };
+
+            WorldPackets::Item::InvUpdate Inv;
+            EquipmentSetItem Items[EQUIPMENT_SLOT_END];
+        };
+
+        class UseEquipmentSetResult final : public ServerPacket
+        {
+        public:
+            UseEquipmentSetResult() : ServerPacket(SMSG_USE_EQUIPMENT_SET_RESULT, 1) { }
+
+            WorldPacket const* Write() override;
+
+            uint8 Reason = 0;
         };
     }
 }

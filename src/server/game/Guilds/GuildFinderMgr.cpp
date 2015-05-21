@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -129,11 +129,11 @@ void GuildFinderMgr::AddMembershipRequest(ObjectGuid const& guildGuid, Membershi
 
     // Notify the applicant his submittion has been added
     if (Player* player = ObjectAccessor::FindPlayer(request.GetPlayerGUID()))
-        SendMembershipRequestListUpdate(*player);
+        SendMembershipRequestListUpdate(player);
 
     // Notify the guild master and officers the list changed
     if (Guild* guild = sGuildMgr->GetGuildByGuid(guildGuid))
-        SendApplicantListUpdate(*guild);
+        SendApplicantListUpdate(guild);
 }
 
 void GuildFinderMgr::RemoveAllMembershipRequestsFromPlayer(ObjectGuid const& playerId)
@@ -159,7 +159,7 @@ void GuildFinderMgr::RemoveAllMembershipRequestsFromPlayer(ObjectGuid const& pla
 
         // Notify the guild master and officers the list changed
         if (Guild* guild = sGuildMgr->GetGuildByGuid(itr->first))
-            SendApplicantListUpdate(*guild);
+            SendApplicantListUpdate(guild);
     }
 }
 
@@ -182,15 +182,15 @@ void GuildFinderMgr::RemoveMembershipRequest(ObjectGuid const& playerId, ObjectG
 
     CharacterDatabase.CommitTransaction(trans);
 
-    _membershipRequests[guildId].erase(itr);
-
     // Notify the applicant his submittion has been removed
     if (Player* player = ObjectAccessor::FindPlayer(itr->GetPlayerGUID()))
-        SendMembershipRequestListUpdate(*player);
+        SendMembershipRequestListUpdate(player);
 
     // Notify the guild master and officers the list changed
     if (Guild* guild = sGuildMgr->GetGuildByGuid(guildId))
-        SendApplicantListUpdate(*guild);
+        SendApplicantListUpdate(guild);
+
+    _membershipRequests[guildId].erase(itr);
 }
 
 std::list<MembershipRequest> GuildFinderMgr::GetAllMembershipRequestsForPlayer(ObjectGuid const& playerGuid)
@@ -302,7 +302,7 @@ void GuildFinderMgr::DeleteGuild(ObjectGuid const& guildId)
 
         // Notify the applicant his submition has been removed
         if (Player* player = ObjectAccessor::FindPlayer(itr->GetPlayerGUID()))
-            SendMembershipRequestListUpdate(*player);
+            SendMembershipRequestListUpdate(player);
 
         ++itr;
     }
@@ -312,19 +312,19 @@ void GuildFinderMgr::DeleteGuild(ObjectGuid const& guildId)
 
     // Notify the guild master the list changed (even if he's not a GM any more, not sure if needed)
     if (Guild* guild = sGuildMgr->GetGuildByGuid(guildId))
-        SendApplicantListUpdate(*guild);
+        SendApplicantListUpdate(guild);
 }
 
-void GuildFinderMgr::SendApplicantListUpdate(Guild& guild)
+void GuildFinderMgr::SendApplicantListUpdate(Guild* guild)
 {
-    WorldPacket data(SMSG_LF_GUILD_APPLICANT_LIST_UPDATED, 0);
-    if (Player* player = ObjectAccessor::FindPlayer(guild.GetLeaderGUID()))
+    WorldPacket data(SMSG_LF_GUILD_APPLICANT_LIST_CHANGED, 0);
+    if (Player* player = ObjectAccessor::FindPlayer(guild->GetLeaderGUID()))
         player->SendDirectMessage(&data);
-    guild.BroadcastPacketToRank(&data, GR_OFFICER);
+    guild->BroadcastPacketToRank(&data, GR_OFFICER);
 }
 
-void GuildFinderMgr::SendMembershipRequestListUpdate(Player& player)
+void GuildFinderMgr::SendMembershipRequestListUpdate(Player* player)
 {
     WorldPacket data(SMSG_LF_GUILD_APPLICATIONS_LIST_CHANGED, 0);
-    player.SendDirectMessage(&data);
+    player->SendDirectMessage(&data);
 }

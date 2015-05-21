@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@
 #include "SystemConfig.h"
 #include "Util.h"
 #include "ZmqContext.h"
+#include "DatabaseLoader.h"
 #include <cstdlib>
 #include <iostream>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -56,8 +57,8 @@ void SignalHandler(const boost::system::error_code& error, int signalNumber);
 void KeepDatabaseAliveHandler(const boost::system::error_code& error);
 variables_map GetConsoleArguments(int argc, char** argv, std::string& configFile);
 
-boost::asio::io_service _ioService;
-boost::asio::deadline_timer _dbPingTimer(_ioService);
+std::unique_ptr<boost::asio::io_service> _ioService;
+std::unique_ptr<boost::asio::deadline_timer> _dbPingTimer;
 uint32 _dbPingInterval;
 LoginDatabaseWorkerPool LoginDatabase;
 
@@ -108,8 +109,10 @@ int main(int argc, char** argv)
 
     sIpcContext->Initialize();
 
+    _ioService.reset(new boost::asio::io_service());
+
     // Get the list of realms for the server
-    sRealmList->Initialize(_ioService, sConfigMgr->GetIntDefault("RealmsStateUpdateDelay", 10), worldListenPort);
+    sRealmList->Initialize(*_ioService, sConfigMgr->GetIntDefault("RealmsStateUpdateDelay", 10), worldListenPort);
 
     // Start the listening port (acceptor) for auth connections
     int32 bnport = sConfigMgr->GetIntDefault("BattlenetPort", 1119);
@@ -122,10 +125,10 @@ int main(int argc, char** argv)
 
     std::string bindIp = sConfigMgr->GetStringDefault("BindIP", "0.0.0.0");
 
-    sSessionMgr.StartNetwork(_ioService, bindIp, bnport);
+    sSessionMgr.StartNetwork(*_ioService, bindIp, bnport);
 
     // Set signal handlers
-    boost::asio::signal_set signals(_ioService, SIGINT, SIGTERM);
+    boost::asio::signal_set signals(*_ioService, SIGINT, SIGTERM);
 #if PLATFORM == PLATFORM_WINDOWS
     signals.add(SIGBREAK);
 #endif
@@ -136,14 +139,19 @@ int main(int argc, char** argv)
 
     // Enabled a timed callback for handling the database keep alive ping
     _dbPingInterval = sConfigMgr->GetIntDefault("MaxPingTime", 30);
-    _dbPingTimer.expires_from_now(boost::posix_time::minutes(_dbPingInterval));
-    _dbPingTimer.async_wait(KeepDatabaseAliveHandler);
+    _dbPingTimer.reset(new boost::asio::deadline_timer(*_ioService));
+    _dbPingTimer->expires_from_now(boost::posix_time::minutes(_dbPingInterval));
+    _dbPingTimer->async_wait(KeepDatabaseAliveHandler);
 
     sComponentMgr->Load();
     sModuleMgr->Load();
 
     // Start the io service worker loop
-    _ioService.run();
+    _ioService->run();
+
+    _dbPingTimer->cancel();
+
+    sSessionMgr.StopNetwork();
 
     sIpcContext->Close();
 
@@ -153,41 +161,25 @@ int main(int argc, char** argv)
     StopDB();
 
     TC_LOG_INFO("server.bnetserver", "Halting process...");
+
+    signals.clear();
+
+    _ioService.reset();
     return 0;
 }
-
 
 /// Initialize connection to the database
 bool StartDB()
 {
     MySQL::Library_Init();
 
-    std::string dbstring = sConfigMgr->GetStringDefault("LoginDatabaseInfo", "");
-    if (dbstring.empty())
-    {
-        TC_LOG_ERROR("server.bnetserver", "Database not specified");
+    // Load databases
+    DatabaseLoader loader("server.bnetserver", DatabaseLoader::DATABASE_NONE);
+    loader
+        .AddDatabase(LoginDatabase, "Login");
+
+    if (!loader.Load())
         return false;
-    }
-
-    int32 worker_threads = sConfigMgr->GetIntDefault("LoginDatabase.WorkerThreads", 1);
-    if (worker_threads < 1 || worker_threads > 32)
-    {
-        TC_LOG_ERROR("server.bnetserver", "Improper value specified for LoginDatabase.WorkerThreads, defaulting to 1.");
-        worker_threads = 1;
-    }
-
-    int32 synch_threads = sConfigMgr->GetIntDefault("LoginDatabase.SynchThreads", 1);
-    if (synch_threads < 1 || synch_threads > 32)
-    {
-        TC_LOG_ERROR("server.bnetserver", "Improper value specified for LoginDatabase.SynchThreads, defaulting to 1.");
-        synch_threads = 1;
-    }
-
-    if (!LoginDatabase.Open(dbstring, uint8(worker_threads), uint8(synch_threads)))
-    {
-        TC_LOG_ERROR("server.bnetserver", "Cannot connect to database");
-        return false;
-    }
 
     TC_LOG_INFO("server.bnetserver", "Started auth database connection pool.");
     sLog->SetRealmId(0); // Enables DB appenders when realm is set.
@@ -204,7 +196,7 @@ void StopDB()
 void SignalHandler(const boost::system::error_code& error, int /*signalNumber*/)
 {
     if (!error)
-        _ioService.stop();
+        _ioService->stop();
 }
 
 void KeepDatabaseAliveHandler(const boost::system::error_code& error)
@@ -214,8 +206,8 @@ void KeepDatabaseAliveHandler(const boost::system::error_code& error)
         TC_LOG_INFO("server.bnetserver", "Ping MySQL to keep connection alive");
         LoginDatabase.KeepAlive();
 
-        _dbPingTimer.expires_from_now(boost::posix_time::minutes(_dbPingInterval));
-        _dbPingTimer.async_wait(KeepDatabaseAliveHandler);
+        _dbPingTimer->expires_from_now(boost::posix_time::minutes(_dbPingInterval));
+        _dbPingTimer->async_wait(KeepDatabaseAliveHandler);
     }
 }
 

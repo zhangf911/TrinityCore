@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -22,17 +22,20 @@
 #include "SharedDefines.h"
 #include "ObjectGuid.h"
 
+class WorldObject;
+
 namespace WorldPackets
 {
     namespace Chat
     {
-        // CMSG_MESSAGECHAT_GUILD
-        // CMSG_MESSAGECHAT_OFFICER
-        // CMSG_MESSAGECHAT_YELL
-        // CMSG_MESSAGECHAT_SAY
-        // CMSG_MESSAGECHAT_PARTY
-        // CMSG_MESSAGECHAT_RAID
-        // CMSG_MESSAGECHAT_RAID_WARNING
+        // CMSG_CHAT_MESSAGE_GUILD
+        // CMSG_CHAT_MESSAGE_OFFICER
+        // CMSG_CHAT_MESSAGE_YELL
+        // CMSG_CHAT_MESSAGE_SAY
+        // CMSG_CHAT_MESSAGE_PARTY
+        // CMSG_CHAT_MESSAGE_RAID
+        // CMSG_CHAT_MESSAGE_RAID_WARNING
+        // CMSG_CHAT_MESSAGE_INSTANCE_CHAT
         class ChatMessage final : public ClientPacket
         {
         public:
@@ -44,7 +47,7 @@ namespace WorldPackets
             int32 Language = LANG_UNIVERSAL;
         };
 
-        // CMSG_MESSAGECHAT_WHISPER
+        // CMSG_CHAT_MESSAGE_WHISPER
         class ChatMessageWhisper final : public ClientPacket
         {
         public:
@@ -57,7 +60,7 @@ namespace WorldPackets
             std::string Target;
         };
 
-        // CMSG_MESSAGECHAT_CHANNEL
+        // CMSG_CHAT_MESSAGE_CHANNEL
         class ChatMessageChannel final : public ClientPacket
         {
         public:
@@ -70,10 +73,11 @@ namespace WorldPackets
             std::string Target;
         };
 
-        // CMSG_MESSAGECHAT_ADDON_GUILD
-        // CMSG_MESSAGECHAT_ADDON_OFFICER
-        // CMSG_MESSAGECHAT_ADDON_PARTY
-        // CMSG_MESSAGECHAT_ADDON_RAID
+        // CMSG_CHAT_ADDON_MESSAGE_GUILD
+        // CMSG_CHAT_ADDON_MESSAGE_OFFICER
+        // CMSG_CHAT_ADDON_MESSAGE_PARTY
+        // CMSG_CHAT_ADDON_MESSAGE_RAID
+        // CMSG_CHAT_ADDON_MESSAGE_INSTANCE_CHAT
         class ChatAddonMessage final : public ClientPacket
         {
         public:
@@ -85,11 +89,11 @@ namespace WorldPackets
             std::string Text;
         };
 
-        // CMSG_MESSAGECHAT_ADDON_WHISPER
+        // CMSG_CHAT_ADDON_MESSAGE_WHISPER
         class ChatAddonMessageWhisper final : public ClientPacket
         {
         public:
-            ChatAddonMessageWhisper(WorldPacket&& packet) : ClientPacket(std::move(packet)) { }
+            ChatAddonMessageWhisper(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_ADDON_MESSAGE_WHISPER, std::move(packet)) { }
 
             void Read() override;
 
@@ -98,10 +102,23 @@ namespace WorldPackets
             std::string Text;
         };
 
+        // CMSG_CHAT_ADDON_MESSAGE_CHANNEL
+        class ChatAddonMessageChannel final : public ClientPacket
+        {
+        public:
+            ChatAddonMessageChannel(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_ADDON_MESSAGE_CHANNEL, std::move(packet)) { }
+
+            void Read() override;
+
+            std::string Text;
+            std::string Target;
+            std::string Prefix;
+        };
+
         class ChatMessageDND final : public ClientPacket
         {
         public:
-            ChatMessageDND(WorldPacket&& packet) : ClientPacket(CMSG_MESSAGECHAT_DND, std::move(packet)) { }
+            ChatMessageDND(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_MESSAGE_DND, std::move(packet)) { }
 
             void Read() override;
 
@@ -111,7 +128,7 @@ namespace WorldPackets
         class ChatMessageAFK final : public ClientPacket
         {
         public:
-            ChatMessageAFK(WorldPacket&& packet) : ClientPacket(CMSG_MESSAGECHAT_AFK, std::move(packet)) { }
+            ChatMessageAFK(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_MESSAGE_AFK, std::move(packet)) { }
 
             void Read() override;
 
@@ -121,23 +138,24 @@ namespace WorldPackets
         class ChatMessageEmote final : public ClientPacket
         {
         public:
-            ChatMessageEmote(WorldPacket&& packet) : ClientPacket(CMSG_MESSAGECHAT_EMOTE, std::move(packet)) { }
+            ChatMessageEmote(WorldPacket&& packet) : ClientPacket(CMSG_CHAT_MESSAGE_EMOTE, std::move(packet)) { }
 
             void Read() override;
 
             std::string Text;
         };
 
-        // SMSG_MESSAGECHAT
+        // SMSG_CHAT
         class Chat final : public ServerPacket
         {
         public:
-            Chat() : ServerPacket(SMSG_MESSAGECHAT, 100) { }
+            Chat() : ServerPacket(SMSG_CHAT, 100) { }
 
+            void Initialize(ChatMsg chatType, Language language, WorldObject const* sender, WorldObject const* receiver, std::string message, uint32 achievementId = 0, std::string channelName = "", LocaleConstant locale = DEFAULT_LOCALE, std::string addonPrefix = "");
             WorldPacket const* Write() override;
 
-            uint8 SlashCmd = 0;
-            uint8 Language = LANG_UNIVERSAL;
+            uint8 SlashCmd = 0;     ///< @see enum ChatMsg
+            uint8 _Language = LANG_UNIVERSAL;
             ObjectGuid SenderGUID;
             ObjectGuid SenderGuildGUID;
             ObjectGuid SenderAccountGUID;
@@ -147,11 +165,11 @@ namespace WorldPackets
             uint32 TargetVirtualAddress = 0;
             std::string SenderName;
             std::string TargetName;
-            std::string Prefix;
-            std::string Channel;
+            std::string Prefix;     ///< Addon Prefix
+            std::string _Channel;   ///< Channel Name
             std::string ChatText;
             uint32 AchievementID = 0;
-            uint8 ChatFlags = 0;
+            uint8 _ChatFlags = 0;   ///< @see enum ChatFlags
             float DisplayTime = 0.0f;
             bool HideChatLog = false;
             bool FakeSenderName = false;
@@ -171,7 +189,7 @@ namespace WorldPackets
         class CTextEmote final : public ClientPacket
         {
         public:
-            CTextEmote(WorldPacket&& packet) : ClientPacket(CMSG_TEXT_EMOTE, std::move(packet)) { }
+            CTextEmote(WorldPacket&& packet) : ClientPacket(CMSG_SEND_TEXT_EMOTE, std::move(packet)) { }
 
             void Read() override;
 
@@ -192,6 +210,45 @@ namespace WorldPackets
             ObjectGuid TargetGUID;
             int32 SoundIndex = -1;
             int32 EmoteID = 0;
+        };
+
+        class PrintNotification final : public ServerPacket
+        {
+        public:
+            PrintNotification(std::string const& notifyText) : ServerPacket(SMSG_PRINT_NOTIFICATION, 2 + notifyText.size()), NotifyText(notifyText) { }
+
+            WorldPacket const* Write() override;
+
+            std::string NotifyText;
+        };
+
+        class EmoteClient final : public ClientPacket
+        {
+        public:
+            EmoteClient(WorldPacket&& packet) : ClientPacket(CMSG_EMOTE, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        class ChatPlayerNotfound final : public ServerPacket
+        {
+        public:
+            ChatPlayerNotfound(std::string const& name) : ServerPacket(SMSG_CHAT_PLAYER_NOTFOUND, 2 + name.size()), Name(name) { }
+
+            WorldPacket const* Write() override;
+
+            std::string Name;
+        };
+
+        class ChatServerMessage final : public ServerPacket
+        {
+        public:
+            ChatServerMessage() : ServerPacket(SMSG_CHAT_SERVER_MESSAGE, 4 + 2) { }
+
+            WorldPacket const* Write() override;
+
+            int32 MessageID = 0;
+            std::string StringParam;
         };
     }
 }

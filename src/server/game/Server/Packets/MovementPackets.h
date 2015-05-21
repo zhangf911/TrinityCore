@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,7 +20,13 @@
 
 #include "Packet.h"
 #include "Object.h"
+
 #include <G3D/Vector3.h>
+
+namespace Movement
+{
+    class MoveSpline;
+}
 
 namespace WorldPackets
 {
@@ -36,10 +42,10 @@ namespace WorldPackets
             MovementInfo movementInfo;
         };
 
-        class ServerPlayerMovement final : public ServerPacket
+        class MoveUpdate final : public ServerPacket
         {
         public:
-            ServerPlayerMovement() : ServerPacket(SMSG_PLAYER_MOVE) { }
+            MoveUpdate() : ServerPacket(SMSG_MOVE_UPDATE) { }
 
             WorldPacket const* Write() override;
 
@@ -92,10 +98,18 @@ namespace WorldPackets
             MovementSpline Move;
         };
 
+        class CommonMovement
+        {
+        public:
+            static void WriteCreateObjectSplineDataBlock(::Movement::MoveSpline const& moveSpline, ByteBuffer& data);
+        };
+
         class MonsterMove final : public ServerPacket
         {
         public:
-            MonsterMove() : ServerPacket(SMSG_MONSTER_MOVE) { }
+            MonsterMove() : ServerPacket(SMSG_ON_MONSTER_MOVE) { }
+
+            void InitializeSplineData(::Movement::MoveSpline const& moveSpline);
 
             WorldPacket const* Write() override;
 
@@ -201,10 +215,10 @@ namespace WorldPackets
             Position Pos;
         };
 
-        class WorldPortAck final : public ClientPacket
+        class WorldPortResponse final : public ClientPacket
         {
         public:
-            WorldPortAck(WorldPacket&& packet) : ClientPacket(CMSG_MOVE_WORLDPORT_ACK, std::move(packet)) { }
+            WorldPortResponse(WorldPacket&& packet) : ClientPacket(CMSG_WORLD_PORT_RESPONSE, std::move(packet)) { }
 
             void Read() override { }
         };
@@ -271,18 +285,134 @@ namespace WorldPackets
             int32 AckIndex = 0;
             int32 MoveTime = 0;
         };
-    }
-}
 
-ByteBuffer& operator<<(ByteBuffer& data, G3D::Vector3 const& v);
-ByteBuffer& operator>>(ByteBuffer& data, G3D::Vector3& v);
+        struct MovementAck
+        {
+            MovementInfo movementInfo;
+            int32 AckIndex = 0;
+        };
+
+        class MovementAckMessage final : public ClientPacket
+        {
+        public:
+            MovementAckMessage(WorldPacket&& packet) : ClientPacket(std::move(packet)) { }
+
+            void Read() override;
+
+            MovementAck Ack;
+        };
+
+        class MovementSpeedAck final : public ClientPacket
+        {
+        public:
+            MovementSpeedAck(WorldPacket&& packet) : ClientPacket(std::move(packet)) { }
+
+            void Read() override;
+
+            MovementAck Ack;
+            float Speed = 0.0f;
+        };
+
+        class SetActiveMover final : public ClientPacket
+        {
+        public:
+            SetActiveMover(WorldPacket&& packet) : ClientPacket(CMSG_SET_ACTIVE_MOVER, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid ActiveMover;
+        };
+
+        class MoveSetActiveMover final : public ServerPacket
+        {
+        public:
+            MoveSetActiveMover() : ServerPacket(SMSG_MOVE_SET_ACTIVE_MOVER, 8) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid MoverGUID;
+        };
+
+        class MoveUpdateKnockBack final : public ServerPacket
+        {
+        public:
+            MoveUpdateKnockBack() : ServerPacket(SMSG_MOVE_UPDATE_KNOCK_BACK) { }
+
+            WorldPacket const* Write() override;
+
+            MovementInfo* movementInfo = nullptr;
+        };
+
+        enum UpdateCollisionHeightReason : uint8
+        {
+            UPDATE_COLLISION_HEIGHT_SCALE = 0,
+            UPDATE_COLLISION_HEIGHT_MOUNT = 1,
+            UPDATE_COLLISION_HEIGHT_FORCE = 2
+        };
+
+        class MoveSetCollisionHeight final : public ServerPacket
+        {
+        public:
+            MoveSetCollisionHeight() : ServerPacket(SMSG_MOVE_SET_COLLISION_HEIGHT, 4 + 16 + 4 + 1 + 4 + 4) { }
+
+            WorldPacket const* Write() override;
+
+            float Scale = 1.0f;
+            ObjectGuid MoverGUID;
+            uint32 MountDisplayID = 0;
+            UpdateCollisionHeightReason Reason = UPDATE_COLLISION_HEIGHT_MOUNT;
+            uint32 SequenceIndex = 0;
+            float Height = 1.0f;
+        };
+
+        class MoveUpdateCollisionHeight final : public ServerPacket
+        {
+        public:
+            MoveUpdateCollisionHeight() : ServerPacket(SMSG_MOVE_UPDATE_COLLISION_HEIGHT) { }
+
+            WorldPacket const* Write() override;
+
+            MovementInfo* movementInfo = nullptr;
+            float Scale = 1.0f;
+            float Height = 1.0f;
+        };
+
+        class MoveSetCollisionHeightAck final : public ClientPacket
+        {
+        public:
+            MoveSetCollisionHeightAck(WorldPacket&& packet) : ClientPacket(CMSG_MOVE_SET_COLLISION_HEIGHT_ACK, std::move(packet)) { }
+
+            void Read() override;
+
+            MovementAck Data;
+            UpdateCollisionHeightReason Reason = UPDATE_COLLISION_HEIGHT_MOUNT;
+            uint32 MountDisplayID = 0;
+            float Height = 1.0f;
+        };
+
+        class MoveTimeSkipped final : public ClientPacket
+        {
+        public:
+            MoveTimeSkipped(WorldPacket&& packet) : ClientPacket(CMSG_MOVE_TIME_SKIPPED, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid MoverGUID;
+            uint32 TimeSkipped;
+        };
+    }
+
+    ByteBuffer& operator<<(ByteBuffer& data, Movement::MonsterSplineFilterKey const& monsterSplineFilterKey);
+    ByteBuffer& operator<<(ByteBuffer& data, Movement::MonsterSplineFilter const& monsterSplineFilter);
+    ByteBuffer& operator<<(ByteBuffer& data, Movement::MovementSpline const& movementSpline);
+    ByteBuffer& operator<<(ByteBuffer& data, Movement::MovementMonsterSpline const& movementMonsterSpline);
+}
 
 ByteBuffer& operator>>(ByteBuffer& data, MovementInfo& movementInfo);
 ByteBuffer& operator<<(ByteBuffer& data, MovementInfo& movementInfo);
 
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Movement::MonsterSplineFilterKey const& monsterSplineFilterKey);
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Movement::MonsterSplineFilter const& monsterSplineFilter);
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Movement::MovementSpline const& movementSpline);
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Movement::MovementMonsterSpline const& movementMonsterSpline);
+ByteBuffer& operator>>(ByteBuffer& data, MovementInfo::TransportInfo& transportInfo);
+ByteBuffer& operator<<(ByteBuffer& data, MovementInfo::TransportInfo const& transportInfo);
+ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::Movement::MovementAck& movementAck);
 
 #endif // MovementPackets_h__

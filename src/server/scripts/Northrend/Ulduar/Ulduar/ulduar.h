@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -54,6 +54,7 @@ enum UlduarNPCs
     NPC_LEVIATHAN                           = 33113,
     NPC_SALVAGED_DEMOLISHER                 = 33109,
     NPC_SALVAGED_SIEGE_ENGINE               = 33060,
+    NPC_SALVAGED_CHOPPER                    = 33062,
     NPC_IGNIS                               = 33118,
     NPC_RAZORSCALE                          = 33186,
     NPC_RAZORSCALE_CONTROLLER               = 33233,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,15 +20,11 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Log.h"
+#include "ReferAFriendPackets.h"
 
-void WorldSession::HandleGrantLevel(WorldPacket& recvData)
+void WorldSession::HandleGrantLevel(WorldPackets::RaF::GrantLevel& grantLevel)
 {
-    TC_LOG_DEBUG("network", "WORLD: CMSG_GRANT_LEVEL");
-
-    ObjectGuid guid;
-    recvData >> guid.ReadAsPacked();
-
-    Player* target = ObjectAccessor::GetObjectInWorld(guid, _player);
+    Player* target = ObjectAccessor::GetPlayer(*_player, grantLevel.Target);
 
     // check cheating
     uint8 levels = _player->GetGrantableLevels();
@@ -47,31 +43,28 @@ void WorldSession::HandleGrantLevel(WorldPacket& recvData)
         error = ERR_REFER_A_FRIEND_GRANT_LEVEL_MAX_I;
     else if (target->GetGroup() != _player->GetGroup())
         error = ERR_REFER_A_FRIEND_NOT_IN_GROUP;
+    else if (target->getLevel() >= GetMaxLevelForExpansion(target->GetSession()->GetExpansion()))
+        error = ERR_REFER_A_FRIEND_INSUF_EXPAN_LVL;
 
     if (error)
     {
-        WorldPacket data(SMSG_REFER_A_FRIEND_FAILURE, 24);
-        data << uint32(error);
+        WorldPackets::RaF::ReferAFriendFailure failure;
+        failure.Reason = error;
         if (error == ERR_REFER_A_FRIEND_NOT_IN_GROUP)
-            data << target->GetName();
+            failure.Str = target->GetName();
 
-        SendPacket(&data);
+        SendPacket(failure.Write());
         return;
     }
 
-    WorldPacket data2(SMSG_PROPOSE_LEVEL_GRANT, 8);
-    data2 << _player->GetPackGUID();
-    target->GetSession()->SendPacket(&data2);
+    WorldPackets::RaF::ProposeLevelGrant proposeLevelGrant;
+    proposeLevelGrant.Sender = _player->GetGUID();
+    target->SendDirectMessage(proposeLevelGrant.Write());
 }
 
-void WorldSession::HandleAcceptGrantLevel(WorldPacket& recvData)
+void WorldSession::HandleAcceptGrantLevel(WorldPackets::RaF::AcceptLevelGrant& acceptLevelGrant)
 {
-    TC_LOG_DEBUG("network", "WORLD: CMSG_ACCEPT_LEVEL_GRANT");
-
-    ObjectGuid guid;
-    recvData >> guid.ReadAsPacked();
-
-    Player* other = ObjectAccessor::GetObjectInWorld(guid, _player);
+    Player* other = ObjectAccessor::GetPlayer(*_player, acceptLevelGrant.Granter);
     if (!(other && other->GetSession()))
         return;
 

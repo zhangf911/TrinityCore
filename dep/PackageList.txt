@@ -4,9 +4,17 @@ Boost
   http://www.boost.org
   Version: 1.55
 
+Boost Process (Proposed for boost, but its not an official part of it yet. Used to start child processes.)
+  http://www.highscore.de/boost/process0.5/
+  Version: 0.5
+
 bzip2 (a freely available, patent free, high-quality data compressor)
   http://www.bzip.org/
   Version: 1.0.6
+
+cppformat (type safe format library)
+  https://github.com/cppformat/cppformat
+  Version: 1.1.0 fd53bb6fb88a23e38ec4fe331bfe95d7372d49c9
 
 G3D (a commercial-grade C++ 3D engine available as Open Source (BSD License)
   http://g3d.sourceforge.net/
@@ -26,7 +34,7 @@ utf8-cpp (UTF-8 with C++ in a Portable Way)
 
 zlib (A Massively Spiffy Yet Delicately Unobtrusive Compression Library)
   http://www.zlib.net/
-  Version: 1.2.7
+  Version: 1.2.8
 
 gSOAP (a portable development toolkit for C and C++ XML Web services and XML data bindings)
   http://gsoap2.sourceforge.net/
@@ -38,7 +46,7 @@ recastnavigation (Recast is state of the art navigation mesh construction toolse
 
 CascLib (An open-source implementation of library for reading CASC storage from Blizzard games since 2014)
   https://github.com/ladislav-zezula/CascLib
-  Version: 3e3f4f443cb7b2893cbbe60b0a6efafebf48bc40
+  Version: d1d617d4feecd39bae049e19b0e217a1a84bedc6
 
 zmqpp (C++ binding for 0mq/zmq is a 'high-level' library that hides most of the c-style interface core 0mq provides.)
   https://github.com/zeromq/zmqpp

@@ -1,20 +1,20 @@
 /*
-* Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
-* Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #ifndef __WORLDSOCKET_H__
 #define __WORLDSOCKET_H__
@@ -40,6 +40,7 @@ namespace WorldPackets
     {
         class AuthSession;
         class AuthContinuedSession;
+        class ConnectToFailed;
     }
 }
 
@@ -84,21 +85,29 @@ public:
 
     ConnectionType GetConnectionType() const { return _type; }
 
+    void SendAuthResponseError(uint8 code);
+    void SetWorldSession(WorldSession* session);
+
 protected:
+    void OnClose() override;
     void ReadHandler() override;
     bool ReadHeaderHandler();
     bool ReadDataHandler();
-
 private:
+    /// writes network.opcode log
+    /// accessing WorldSession is not threadsafe, only do it when holding _worldSessionLock
+    void LogOpcodeText(OpcodeClient opcode, std::unique_lock<std::mutex> const& guard) const;
+    /// sends and logs network.opcode without accessing WorldSession
+    void SendPacketAndLogOpcode(WorldPacket const& packet);
     void WritePacketToBuffer(WorldPacket const& packet, MessageBuffer& buffer);
     uint32 CompressPacket(uint8* buffer, WorldPacket const& packet);
 
     void HandleSendAuthSession();
     void HandleAuthSession(WorldPackets::Auth::AuthSession& authSession);
     void HandleAuthContinuedSession(WorldPackets::Auth::AuthContinuedSession& authSession);
-    void SendAuthResponseError(uint8 code);
+    void HandleConnectToFailed(WorldPackets::Auth::ConnectToFailed& connectToFailed);
 
-    void HandlePing(WorldPacket& recvPacket);
+    bool HandlePing(WorldPacket& recvPacket);
 
     void ExtractOpcodeAndSize(ClientPktHeader const* header, uint32& opcode, uint32& size) const;
 
@@ -112,7 +121,9 @@ private:
     std::chrono::steady_clock::time_point _LastPingTime;
     uint32 _OverSpeedPings;
 
+    std::mutex _worldSessionLock;
     WorldSession* _worldSession;
+    bool _authed;
 
     MessageBuffer _headerBuffer;
     MessageBuffer _packetBuffer;

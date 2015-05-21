@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@ SDCategory: Dragonblight
 EndScriptData */
 
 /* ContentData
-npc_alexstrasza_wr_gate
 EndContentData */
 
 #include "ScriptMgr.h"
@@ -174,34 +173,29 @@ class npc_commander_eligor_dawnbringer : public CreatureScript
                 {
                     if (id == 1)
                     {
-                        me->SetFacingTo(PosTalkLocations[talkWing].m_orientation);
+                        me->SetFacingTo(PosTalkLocations[talkWing].GetOrientation());
                         TurnAudience();
 
                         switch (talkWing)
                         {
-                        case 0: // Pinnacle of Naxxramas
-                            {
-                                switch (urand (0, 1))
+                            case 0: // Pinnacle of Naxxramas
+                                switch (urand(0, 1))
                                 {
                                     case 0: ChangeImage(NPC_IMAGE_OF_KELTHUZAD, MODEL_IMAGE_OF_KELTHUZAD, SAY_KELTHUZAD_1);
-                                            _events.ScheduleEvent(EVENT_KELTHUZAD_2, 8000); break;
+                                        _events.ScheduleEvent(EVENT_KELTHUZAD_2, 8000); break;
                                     case 1: ChangeImage(NPC_IMAGE_OF_SAPPHIRON, MODEL_IMAGE_OF_SAPPHIRON, SAY_SAPPHIRON); break;
                                 }
-                            }
-                            break;
-                        case 1: // Death knight wing of Naxxramas
-                            {
-                                switch (urand (0, 2))
+                                break;
+                            case 1: // Death knight wing of Naxxramas
+                                switch (urand(0, 2))
                                 {
                                     case 0: ChangeImage(NPC_IMAGE_OF_RAZUVIOUS, MODEL_IMAGE_OF_RAZUVIOUS, SAY_RAZUVIOUS); break;
                                     case 1: ChangeImage(NPC_IMAGE_OF_GOTHIK, MODEL_IMAGE_OF_GOTHIK, SAY_GOTHIK); break;
                                     case 2: ChangeImage(NPC_IMAGE_OF_THANE, MODEL_IMAGE_OF_THANE, SAY_DEATH_KNIGHTS_1);
-                                            _events.ScheduleEvent(EVENT_DEATH_KNIGHTS_2, 10000); break;
+                                        _events.ScheduleEvent(EVENT_DEATH_KNIGHTS_2, 10000); break;
                                 }
-                            }
-                            break;
-                        case 2: // Blighted abomination wing of Naxxramas
-                            {
+                                break;
+                            case 2: // Blighted abomination wing of Naxxramas
                                 switch (urand (0, 3))
                                 {
                                     case 0: ChangeImage(NPC_IMAGE_OF_PATCHWERK, MODEL_IMAGE_OF_PATCHWERK, SAY_PATCHWERK); break;
@@ -209,20 +203,16 @@ class npc_commander_eligor_dawnbringer : public CreatureScript
                                     case 2: ChangeImage(NPC_IMAGE_OF_THADDIUS, MODEL_IMAGE_OF_THADDIUS, SAY_THADDIUS); break;
                                     case 3: ChangeImage(NPC_IMAGE_OF_GLUTH, MODEL_IMAGE_OF_GLUTH, SAY_GLUTH); break;
                                 }
-                            }
-                            break;
-                        case 3: // Accursed spider wing of Naxxramas
-                            {
+                                break;
+                            case 3: // Accursed spider wing of Naxxramas
                                 switch (urand (0, 2))
                                 {
                                     case 0: ChangeImage(NPC_IMAGE_OF_ANUBREKHAN, MODEL_IMAGE_OF_ANUBREKHAN, SAY_ANUBREKHAN); break;
                                     case 1: ChangeImage(NPC_IMAGE_OF_FAERLINA, MODEL_IMAGE_OF_FAERLINA, SAY_FAERLINA); break;
                                     case 2: ChangeImage(NPC_IMAGE_OF_MAEXXNA, MODEL_IMAGE_OF_MAEXXNA, SAY_MAEXXNA); break;
                                 }
-                            }
-                            break;
-                        case 4: // Dread plague wing of Naxxramas
-                            {
+                                break;
+                            case 4: // Dread plague wing of Naxxramas
                                 switch (urand (0, 2))
                                 {
                                     case 0: ChangeImage(NPC_IMAGE_OF_NOTH, MODEL_IMAGE_OF_NOTH, SAY_NOTH); break;
@@ -230,11 +220,10 @@ class npc_commander_eligor_dawnbringer : public CreatureScript
                                             _events.ScheduleEvent(EVENT_HEIGAN_2, 8000); break;
                                     case 2: ChangeImage(NPC_IMAGE_OF_LOATHEB, MODEL_IMAGE_OF_LOATHEB, SAY_LOATHEB); break;
                                 }
-                            }
-                            break;
-                        case 5: // Home
-                            _events.ScheduleEvent(EVENT_START_RANDOM, 30000);
-                            break;
+                                break;
+                            case 5: // Home
+                                _events.ScheduleEvent(EVENT_START_RANDOM, 30000);
+                                break;
                         }
                     }
                 }
@@ -374,38 +363,6 @@ enum AlexstraszaWrGate
 
     // Movie
     MOVIE_ID_GATES          = 14
-};
-
-#define GOSSIP_ITEM_WHAT_HAPPENED   "Alexstrasza, can you show me what happened here?"
-
-class npc_alexstrasza_wr_gate : public CreatureScript
-{
-public:
-    npc_alexstrasza_wr_gate() : CreatureScript("npc_alexstrasza_wr_gate") { }
-
-    bool OnGossipHello(Player* player, Creature* creature) override
-    {
-        if (creature->IsQuestGiver())
-            player->PrepareQuestMenu(creature->GetGUID());
-
-        if (player->GetQuestRewardStatus(QUEST_RETURN_TO_AG_A) || player->GetQuestRewardStatus(QUEST_RETURN_TO_AG_H))
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_WHAT_HAPPENED, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
-
-        player->SEND_GOSSIP_MENU(player->GetGossipTextId(creature), creature->GetGUID());
-        return true;
-    }
-
-    bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 /*sender*/, uint32 action) override
-    {
-        player->PlayerTalkClass->ClearMenus();
-        if (action == GOSSIP_ACTION_INFO_DEF+1)
-        {
-            player->CLOSE_GOSSIP_MENU();
-            player->SendMovieStart(MOVIE_ID_GATES);
-        }
-
-        return true;
-    }
 };
 
 /*######
@@ -746,7 +703,6 @@ class npc_torturer_lecraft : public CreatureScript
 void AddSC_dragonblight()
 {
     new npc_commander_eligor_dawnbringer();
-    new npc_alexstrasza_wr_gate();
     new spell_q12096_q12092_dummy();
     new spell_q12096_q12092_bark();
     new npc_wyrmrest_defender();

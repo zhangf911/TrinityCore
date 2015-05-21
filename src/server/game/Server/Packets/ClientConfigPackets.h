@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -54,7 +54,7 @@ namespace WorldPackets
         class ClientCacheVersion final : public ServerPacket
         {
         public:
-            ClientCacheVersion() : ServerPacket(SMSG_CLIENTCACHE_VERSION, 4) { }
+            ClientCacheVersion() : ServerPacket(SMSG_CACHE_VERSION, 4) { }
 
             WorldPacket const* Write() override;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -174,7 +174,7 @@ public:
             anchor->GetContactPoint(me, anchorX, anchorY, z, 1.0f);
 
             playerGUID = target->GetGUID();
-            Talk(SAY_EVENT_START);
+            Talk(SAY_EVENT_START, target);
         }
 
         void UpdateAI(uint32 diff) override
@@ -934,20 +934,16 @@ public:
 
         void FindMinions(Unit* owner)
         {
-            std::list<Creature*> MinionList;
+            std::list<TempSummon*> MinionList;
             owner->GetAllMinionsByEntry(MinionList, NPC_GHOULS);
 
             if (!MinionList.empty())
             {
-                for (std::list<Creature*>::const_iterator itr = MinionList.begin(); itr != MinionList.end(); ++itr)
+                for (TempSummon* summon : MinionList)
                 {
-                    if ((*itr)->GetOwner()->GetGUID() == me->GetOwner()->GetGUID())
-                    {
-                        if ((*itr)->IsInCombat() && (*itr)->getAttackerForHelper())
-                        {
-                            AttackStart((*itr)->getAttackerForHelper());
-                        }
-                    }
+                    if (summon->GetOwnerGUID() == me->GetOwnerGUID())
+                        if (summon->IsInCombat() && summon->getAttackerForHelper())
+                            AttackStart(summon->getAttackerForHelper());
                 }
             }
         }

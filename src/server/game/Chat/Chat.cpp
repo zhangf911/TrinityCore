@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -106,17 +106,6 @@ ChatCommand* ChatHandler::getCommandTable()
     return commandTableCache;
 }
 
-std::string ChatHandler::PGetParseString(uint32 entry, ...) const
-{
-    const char *format = GetTrinityString(entry);
-    char str[1024];
-    va_list ap;
-    va_start(ap, entry);
-    vsnprintf(str, 1024, format, ap);
-    va_end(ap);
-    return std::string(str);
-}
-
 char const* ChatHandler::GetTrinityString(uint32 entry) const
 {
     return m_session->GetTrinityString(entry);
@@ -212,7 +201,7 @@ void ChatHandler::SendSysMessage(const char *str)
 
     while (char* line = LineFromMessage(pos))
     {
-        BuildChatPacket(&packet, CHAT_MSG_SYSTEM, LANG_UNIVERSAL, NULL, NULL, line);
+        packet.Initialize(CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, line);
         m_session->SendPacket(packet.Write());
     }
 
@@ -230,7 +219,7 @@ void ChatHandler::SendGlobalSysMessage(const char *str)
 
     while (char* line = LineFromMessage(pos))
     {
-        BuildChatPacket(&packet, CHAT_MSG_SYSTEM, LANG_UNIVERSAL, NULL, NULL, line);
+        packet.Initialize(CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, line);
         sWorld->SendGlobalMessage(packet.Write());
     }
 
@@ -248,7 +237,7 @@ void ChatHandler::SendGlobalGMSysMessage(const char *str)
 
     while (char* line = LineFromMessage(pos))
     {
-        BuildChatPacket(&packet, CHAT_MSG_SYSTEM, LANG_UNIVERSAL, NULL, NULL, line);
+        packet.Initialize(CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, line);
         sWorld->SendGlobalGMMessage(packet.Write());
     }
 
@@ -258,27 +247,6 @@ void ChatHandler::SendGlobalGMSysMessage(const char *str)
 void ChatHandler::SendSysMessage(uint32 entry)
 {
     SendSysMessage(GetTrinityString(entry));
-}
-
-void ChatHandler::PSendSysMessage(uint32 entry, ...)
-{
-    const char *format = GetTrinityString(entry);
-    va_list ap;
-    char str [2048];
-    va_start(ap, entry);
-    vsnprintf(str, 2048, format, ap);
-    va_end(ap);
-    SendSysMessage(str);
-}
-
-void ChatHandler::PSendSysMessage(const char *format, ...)
-{
-    va_list ap;
-    char str [2048];
-    va_start(ap, format);
-    vsnprintf(str, 2048, format, ap);
-    va_end(ap);
-    SendSysMessage(str);
 }
 
 bool ChatHandler::ExecuteCommandInTable(ChatCommand* table, const char* text, std::string const& fullcmd)
@@ -353,9 +321,9 @@ bool ChatHandler::ExecuteCommandInTable(ChatCommand* table, const char* text, st
                 std::string zoneName = "Unknown";
                 if (AreaTableEntry const* area = GetAreaEntryByAreaID(areaId))
                 {
-                    areaName = area->ZoneName;
+                    areaName = area->AreaName_lang;
                     if (AreaTableEntry const* zone = GetAreaEntryByAreaID(area->ParentAreaID))
-                        zoneName = zone->ZoneName;
+                        zoneName = zone->AreaName_lang;
                 }
 
                 sLog->outCommand(m_session->GetAccountId(), "Command: %s [Player: %s (%s) (Account: %u) X: %f Y: %f Z: %f Map: %u (%s) Area: %u (%s) Zone: %s Selected: %s (%s)]",
@@ -628,58 +596,6 @@ bool ChatHandler::ShowHelpForCommand(ChatCommand* table, const char* cmd)
     }
 
     return ShowHelpForSubCommands(table, "", cmd);
-}
-
-void ChatHandler::BuildChatPacket(WorldPackets::Chat::Chat* packet, ChatMsg chatType, Language language, WorldObject const* sender, WorldObject const* receiver, std::string const& message,
-                                  uint32 achievementId /*= 0*/, std::string const& channelName /*= ""*/, LocaleConstant locale /*= DEFAULT_LOCALE*/, std::string const& addonPrefix /*= ""*/)
-{
-    // Clear everything because same packet can be used multiple times
-    packet->Reset();
-    packet->SenderGUID.Clear();
-    packet->SenderAccountGUID.Clear();
-    packet->SenderGuildGUID.Clear();
-    packet->PartyGUID.Clear();
-    packet->TargetGUID.Clear();
-    packet->SenderName.clear();
-    packet->TargetName.clear();
-    packet->ChatFlags = CHAT_FLAG_NONE;
-    
-    packet->SlashCmd = chatType;
-    packet->Language = language;
-
-    if (sender)
-    {
-        packet->SenderGUID = sender->GetGUID();
-
-        if (Creature const* creatureSender = sender->ToCreature())
-            packet->SenderName = creatureSender->GetNameForLocaleIdx(locale);
-
-        if (Player const* playerSender = sender->ToPlayer())
-        {
-            packet->SenderAccountGUID = playerSender->GetSession()->GetAccountGUID();
-            packet->ChatFlags = playerSender->GetChatFlags();
-
-            if (Guild const* guild = playerSender->GetGuild())
-                packet->SenderGuildGUID = guild->GetGUID();
-
-            if (Group const* group = playerSender->GetGroup())
-                packet->PartyGUID = group->GetGUID();
-        }
-    }
-
-    if (receiver)
-    {
-        packet->TargetGUID = receiver->GetGUID();
-        if (Creature const* creatureReceiver = receiver->ToCreature())
-            packet->TargetName = creatureReceiver->GetNameForLocaleIdx(locale);
-    }
-
-    packet->SenderVirtualAddress = GetVirtualRealmAddress();
-    packet->TargetVirtualAddress = GetVirtualRealmAddress();
-    packet->AchievementID = achievementId;
-    packet->Channel = channelName;
-    packet->Prefix = addonPrefix;
-    packet->ChatText = message;
 }
 
 Player* ChatHandler::getSelectedPlayer()

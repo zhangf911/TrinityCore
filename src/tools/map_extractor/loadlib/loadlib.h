@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -70,6 +70,7 @@ struct file_MWMO
 class FileChunk
 {
 public:
+    FileChunk(uint8* data_, uint32 size_) : data(data_), size(size_) { }
     ~FileChunk();
 
     uint8* data;
@@ -101,7 +102,7 @@ public:
     std::multimap<std::string, FileChunk*> chunks;
     FileChunk* GetChunk(std::string const& name);
 };
- 
+
 #pragma pack(pop)
 
 #endif

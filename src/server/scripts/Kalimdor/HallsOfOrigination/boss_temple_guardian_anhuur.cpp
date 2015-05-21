@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -80,7 +80,17 @@ public:
 
     struct boss_temple_guardian_anhuurAI : public BossAI
     {
-        boss_temple_guardian_anhuurAI(Creature* creature) : BossAI(creature, DATA_TEMPLE_GUARDIAN_ANHUUR) { }
+        boss_temple_guardian_anhuurAI(Creature* creature) : BossAI(creature, DATA_TEMPLE_GUARDIAN_ANHUUR)
+        {
+            Initialize();
+        }
+
+        void Initialize()
+        {
+            _phase = PHASE_FIRST_SHIELD;
+            _oldPhase = PHASE_FIRST_SHIELD;
+            _beacons = 0;
+        }
 
         void CleanStalkers()
         {
@@ -95,9 +105,7 @@ public:
 
         void Reset() override
         {
-            _phase = PHASE_FIRST_SHIELD;
-            _oldPhase = PHASE_FIRST_SHIELD;
-            _beacons = 0;
+            Initialize();
             _Reset();
             CleanStalkers();
             me->RemoveAurasDueToSpell(SPELL_SHIELD_OF_LIGHT);
@@ -125,22 +133,25 @@ public:
 
                 DoCastAOE(SPELL_ACTIVATE_BEACONS);
 
-                std::list<Creature*> stalkers;
                 GameObject* door = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(DATA_ANHUUR_DOOR));
-                GetCreatureListWithEntryInGrid(stalkers, me, NPC_CAVE_IN_STALKER, 100.0f);
-
-                stalkers.remove_if(Trinity::HeightDifferenceCheck(door, 0.0f, false)); // Target only the bottom ones
-                for (std::list<Creature*>::iterator itr = stalkers.begin(); itr != stalkers.end(); ++itr)
+                if (door)
                 {
-                    if ((*itr)->GetPositionX() > door->GetPositionX())
+                    std::list<Creature*> stalkers;
+                    GetCreatureListWithEntryInGrid(stalkers, me, NPC_CAVE_IN_STALKER, 100.0f);
+
+                    stalkers.remove_if(Trinity::HeightDifferenceCheck(door, 0.0f, false)); // Target only the bottom ones
+                    for (std::list<Creature*>::iterator itr = stalkers.begin(); itr != stalkers.end(); ++itr)
                     {
-                        (*itr)->CastSpell((*itr), SPELL_SHIELD_VISUAL_LEFT, true);
-                        (*itr)->CastSpell((*itr), SPELL_BEAM_OF_LIGHT_LEFT, true);
-                    }
-                    else
-                    {
-                        (*itr)->CastSpell((*itr), SPELL_SHIELD_VISUAL_RIGHT, true);
-                        (*itr)->CastSpell((*itr), SPELL_BEAM_OF_LIGHT_RIGHT, true);
+                        if ((*itr)->GetPositionX() > door->GetPositionX())
+                        {
+                            (*itr)->CastSpell((*itr), SPELL_SHIELD_VISUAL_LEFT, true);
+                            (*itr)->CastSpell((*itr), SPELL_BEAM_OF_LIGHT_LEFT, true);
+                        }
+                        else
+                        {
+                            (*itr)->CastSpell((*itr), SPELL_SHIELD_VISUAL_RIGHT, true);
+                            (*itr)->CastSpell((*itr), SPELL_BEAM_OF_LIGHT_RIGHT, true);
+                        }
                     }
                 }
 
@@ -378,7 +389,7 @@ public:
             {
                 CustomSpellValues values;
                 values.AddSpellMod(SPELLVALUE_BASE_POINT0, aurEff->GetAmount());
-                caster->CastCustomSpell(GetSpellInfo()->Effects[EFFECT_0].TriggerSpell, values, GetTarget());
+                caster->CastCustomSpell(GetSpellInfo()->GetEffect(caster, EFFECT_0)->TriggerSpell, values, GetTarget());
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -19,6 +19,10 @@
 #ifndef DBCENUMS_H
 #define DBCENUMS_H
 
+#include "Define.h"
+
+#pragma pack(push, 1)
+
 struct DBCPosition2D
 {
     float X;
@@ -32,12 +36,14 @@ struct DBCPosition3D
     float Z;
 };
 
+#pragma pack(pop)
+
 enum LevelLimit
 {
     // Client expected level limitation, like as used in DBC item max levels for "until max player level"
     // use as default max player level, must be fit max level for used client
     // also see MAX_LEVEL and STRONG_MAX_LEVEL define
-    DEFAULT_MAX_LEVEL = 85,
+    DEFAULT_MAX_LEVEL = 100,
 
     // client supported max level for player/pets/etc. Avoid overflow or client stability affected.
     // also see GT_MAX_LEVEL define
@@ -85,18 +91,13 @@ enum AchievementFlags
     ACHIEVEMENT_FLAG_REALM_FIRST_REACH     = 0x00000100,    //
     ACHIEVEMENT_FLAG_REALM_FIRST_KILL      = 0x00000200,    //
     ACHIEVEMENT_FLAG_UNK3                  = 0x00000400,    // ACHIEVEMENT_FLAG_HIDE_NAME_IN_TIE
-    ACHIEVEMENT_FLAG_REALM_FIRST_GUILD     = 0x00000800,    // first guild on realm done something
+    ACHIEVEMENT_FLAG_UNK4                  = 0x00000800,    // first guild on realm done something
     ACHIEVEMENT_FLAG_SHOW_IN_GUILD_NEWS    = 0x00001000,    // Shows in guild news
     ACHIEVEMENT_FLAG_SHOW_IN_GUILD_HEADER  = 0x00002000,    // Shows in guild news header
     ACHIEVEMENT_FLAG_GUILD                 = 0x00004000,    //
     ACHIEVEMENT_FLAG_SHOW_GUILD_MEMBERS    = 0x00008000,    //
-    ACHIEVEMENT_FLAG_SHOW_CRITERIA_MEMBERS = 0x00010000     //
-};
-
-enum AchievementCriteriaLimits
-{
-    MAX_CRITERIA_REQUIREMENTS          = 2,
-    MAX_ADDITIONAL_CRITERIA_CONDITIONS = 3
+    ACHIEVEMENT_FLAG_SHOW_CRITERIA_MEMBERS = 0x00010000,    //
+    ACHIEVEMENT_FLAG_ACCOUNT               = 0x00020000
 };
 
 enum AchievementCriteriaCondition
@@ -132,7 +133,7 @@ enum AchievementCriteriaAdditionalCondition
     ACHIEVEMENT_CRITERIA_ADDITIONAL_CONDITION_TARGET_AREA_OR_ZONE         = 18,
     ACHIEVEMENT_CRITERIA_ADDITIONAL_CONDITION_MAP_DIFFICULTY              = 20,
     ACHIEVEMENT_CRITERIA_ADDITIONAL_CONDITION_TARGET_CREATURE_YIELDS_XP   = 21, // NYI
-    ACHIEVEMENT_CRITERIA_ADDITIONAL_CONDITION_ARENA_TYPE                  = 24, // NYI
+    ACHIEVEMENT_CRITERIA_ADDITIONAL_CONDITION_ARENA_TYPE                  = 24,
     ACHIEVEMENT_CRITERIA_ADDITIONAL_CONDITION_SOURCE_RACE                 = 25,
     ACHIEVEMENT_CRITERIA_ADDITIONAL_CONDITION_SOURCE_CLASS                = 26,
     ACHIEVEMENT_CRITERIA_ADDITIONAL_CONDITION_TARGET_RACE                 = 27,
@@ -179,6 +180,8 @@ enum AchievementCriteriaTimedTypes
     ACHIEVEMENT_TIMED_TYPE_CREATURE         = 7,    // Timer is started by killing creature with entry in timerStartEvent
     ACHIEVEMENT_TIMED_TYPE_ITEM             = 9,    // Timer is started by using item with entry in timerStartEvent
     ACHIEVEMENT_TIMED_TYPE_UNK              = 10,   // Unknown
+    ACHIEVEMENT_TIMED_TYPE_UNK_2            = 13,   // Unknown
+    ACHIEVEMENT_TIMED_TYPE_SCENARIO_STAGE   = 14,   // Timer is started by changing stages in a scenario
 
     ACHIEVEMENT_TIMED_TYPE_MAX
 };
@@ -299,7 +302,13 @@ enum AchievementCriteriaTypes
     ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE      = 139  //struct { uint32 count; } Guild Challenge
 };
 
-#define ACHIEVEMENT_CRITERIA_TYPE_TOTAL 140
+#define ACHIEVEMENT_CRITERIA_TYPE_TOTAL 188
+
+enum AchievementCriteriaTreeOperator
+{
+    ACHIEVEMENT_CRITERIA_TREE_OPERATOR_ALL  = 4,
+    ACHIEVEMENT_CRITERIA_TREE_OPERATOR_ANY  = 8
+};
 
 enum AreaFlags
 {
@@ -330,45 +339,62 @@ enum AreaFlags
     AREA_FLAG_WINTERGRASP           = 0x01000000,                // Wintergrasp and it's subzones
     AREA_FLAG_INSIDE                = 0x02000000,                // used for determinating spell related inside/outside questions in Map::IsOutdoors
     AREA_FLAG_OUTSIDE               = 0x04000000,                // used for determinating spell related inside/outside questions in Map::IsOutdoors
-    AREA_FLAG_WINTERGRASP_2         = 0x08000000,                // Can Hearth And Resurrect From Area
+    AREA_FLAG_CAN_HEARTH_AND_RESURRECT = 0x08000000,             // Can Hearth And Resurrect From Area
     AREA_FLAG_NO_FLY_ZONE           = 0x20000000,                // Marks zones where you cannot fly
     AREA_FLAG_UNK9                  = 0x40000000
 };
 
-enum Difficulty
+enum Difficulty : uint8
 {
-    REGULAR_DIFFICULTY           = 0,
+    DIFFICULTY_NONE           = 0,
+    DIFFICULTY_NORMAL         = 1,
+    DIFFICULTY_HEROIC         = 2,
+    DIFFICULTY_10_N           = 3,
+    DIFFICULTY_25_N           = 4,
+    DIFFICULTY_10_HC          = 5,
+    DIFFICULTY_25_HC          = 6,
+    DIFFICULTY_LFR            = 7,
+    DIFFICULTY_CHALLENGE      = 8,
+    DIFFICULTY_40             = 9,
+    DIFFICULTY_HC_SCENARIO    = 11,
+    DIFFICULTY_N_SCENARIO     = 12,
+    DIFFICULTY_NORMAL_RAID    = 14,
+    DIFFICULTY_HEROIC_RAID    = 15,
+    DIFFICULTY_MYTHIC_RAID    = 16,
+    DIFFICULTY_LFR_NEW        = 17,
+    DIFFICULTY_EVENT_RAID     = 18,
+    DIFFICULTY_EVENT_DUNGEON  = 19,
+    DIFFICULTY_EVENT_SCENARIO = 20,
 
-    DUNGEON_DIFFICULTY_NORMAL    = 0,
-    DUNGEON_DIFFICULTY_HEROIC    = 1,
-    DUNGEON_DIFFICULTY_EPIC      = 2,
-
-    RAID_DIFFICULTY_10MAN_NORMAL = 0,
-    RAID_DIFFICULTY_25MAN_NORMAL = 1,
-    RAID_DIFFICULTY_10MAN_HEROIC = 2,
-    RAID_DIFFICULTY_25MAN_HEROIC = 3
+    MAX_DIFFICULTY
 };
 
-#define RAID_DIFFICULTY_MASK_25MAN 1    // since 25man difficulties are 1 and 3, we can check them like that
+enum DifficultyFlags
+{
+    DIFFICULTY_FLAG_HEROIC          = 0x01,
+    DIFFICULTY_FLAG_DEFAULT         = 0x02,
+    DIFFICULTY_FLAG_CAN_SELECT      = 0x04, // Player can select this difficulty in dropdown menu
+    DIFFICULTY_FLAG_CHALLENGE_MODE  = 0x08,
 
-#define MAX_DUNGEON_DIFFICULTY     3
-#define MAX_RAID_DIFFICULTY        4
-#define MAX_DIFFICULTY             4
+    DIFFICULTY_FLAG_LEGACY          = 0x20,
+    DIFFICULTY_FLAG_DISPLAY_HEROIC  = 0x40, // Controls icon displayed on minimap when inside the instance
+    DIFFICULTY_FLAG_DISPLAY_MYTHIC  = 0x80  // Controls icon displayed on minimap when inside the instance
+};
 
 enum SpawnMask
 {
-    SPAWNMASK_CONTINENT         = (1 << REGULAR_DIFFICULTY), // any maps without spawn modes
+    SPAWNMASK_CONTINENT = (1 << DIFFICULTY_NONE), // any maps without spawn modes
 
-    SPAWNMASK_DUNGEON_NORMAL    = (1 << DUNGEON_DIFFICULTY_NORMAL),
-    SPAWNMASK_DUNGEON_HEROIC    = (1 << DUNGEON_DIFFICULTY_HEROIC),
+    SPAWNMASK_DUNGEON_NORMAL    = (1 << DIFFICULTY_NORMAL),
+    SPAWNMASK_DUNGEON_HEROIC    = (1 << DIFFICULTY_HEROIC),
     SPAWNMASK_DUNGEON_ALL       = (SPAWNMASK_DUNGEON_NORMAL | SPAWNMASK_DUNGEON_HEROIC),
 
-    SPAWNMASK_RAID_10MAN_NORMAL = (1 << RAID_DIFFICULTY_10MAN_NORMAL),
-    SPAWNMASK_RAID_25MAN_NORMAL = (1 << RAID_DIFFICULTY_25MAN_NORMAL),
+    SPAWNMASK_RAID_10MAN_NORMAL = (1 << DIFFICULTY_10_N),
+    SPAWNMASK_RAID_25MAN_NORMAL = (1 << DIFFICULTY_25_N),
     SPAWNMASK_RAID_NORMAL_ALL   = (SPAWNMASK_RAID_10MAN_NORMAL | SPAWNMASK_RAID_25MAN_NORMAL),
 
-    SPAWNMASK_RAID_10MAN_HEROIC = (1 << RAID_DIFFICULTY_10MAN_HEROIC),
-    SPAWNMASK_RAID_25MAN_HEROIC = (1 << RAID_DIFFICULTY_25MAN_HEROIC),
+    SPAWNMASK_RAID_10MAN_HEROIC = (1 << DIFFICULTY_10_HC),
+    SPAWNMASK_RAID_25MAN_HEROIC = (1 << DIFFICULTY_25_HC),
     SPAWNMASK_RAID_HEROIC_ALL   = (SPAWNMASK_RAID_10MAN_HEROIC | SPAWNMASK_RAID_25MAN_HEROIC),
 
     SPAWNMASK_RAID_ALL          = (SPAWNMASK_RAID_NORMAL_ALL | SPAWNMASK_RAID_HEROIC_ALL)
@@ -396,12 +422,16 @@ enum MapTypes                                               // Lua_IsInInstance
     MAP_INSTANCE        = 1,                                // party
     MAP_RAID            = 2,                                // raid
     MAP_BATTLEGROUND    = 3,                                // pvp
-    MAP_ARENA           = 4                                 // arena
+    MAP_ARENA           = 4,                                // arena
+    MAP_SCENARIO        = 5                                 // scenario
 };
 
 enum MapFlags
 {
-    MAP_FLAG_DYNAMIC_DIFFICULTY = 0x100
+    MAP_FLAG_CAN_TOGGLE_DIFFICULTY  = 0x0100,
+    MAP_FLAG_FLEX_LOCKING           = 0x8000, // All difficulties share completed encounters lock, not bound to a single instance id
+                                              // heroic difficulty flag overrides it and uses instance id bind
+    MAP_FLAG_GARRISON               = 0x4000000
 };
 
 enum AbilytyLearnType
@@ -433,16 +463,79 @@ enum ItemExtendedCostFlags
     ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_5   = 0x20,
 };
 
+enum ItemBonusType
+{
+    ITEM_BONUS_ITEM_LEVEL     = 1,
+    ITEM_BONUS_STAT           = 2,
+    ITEM_BONUS_QUALITY        = 3,
+    ITEM_BONUS_DESCRIPTION    = 4,
+    ITEM_BONUS_SUFFIX         = 5,
+    ITEM_BONUS_SOCKET         = 6,
+    ITEM_BONUS_APPEARANCE     = 7,
+    ITEM_BONUS_REQUIRED_LEVEL = 8,
+};
+
 enum ItemLimitCategoryMode
 {
     ITEM_LIMIT_CATEGORY_MODE_HAVE       = 0,                      // limit applied to amount items in inventory/bank
     ITEM_LIMIT_CATEGORY_MODE_EQUIP      = 1                       // limit applied to amount equipped items (including used gems)
 };
 
+enum ItemSpecStat
+{
+    ITEM_SPEC_STAT_INTELLECT        = 0,
+    ITEM_SPEC_STAT_AGILITY          = 1,
+    ITEM_SPEC_STAT_STRENGTH         = 2,
+    ITEM_SPEC_STAT_SPIRIT           = 3,
+    ITEM_SPEC_STAT_HIT              = 4,
+    ITEM_SPEC_STAT_DODGE            = 5,
+    ITEM_SPEC_STAT_PARRY            = 6,
+    ITEM_SPEC_STAT_ONE_HANDED_AXE   = 7,
+    ITEM_SPEC_STAT_TWO_HANDED_AXE   = 8,
+    ITEM_SPEC_STAT_ONE_HANDED_SWORD = 9,
+    ITEM_SPEC_STAT_TWO_HANDED_SWORD = 10,
+    ITEM_SPEC_STAT_ONE_HANDED_MACE  = 11,
+    ITEM_SPEC_STAT_TWO_HANDED_MACE  = 12,
+    ITEM_SPEC_STAT_DAGGER           = 13,
+    ITEM_SPEC_STAT_FIST_WEAPON      = 14,
+    ITEM_SPEC_STAT_GUN              = 15,
+    ITEM_SPEC_STAT_BOW              = 16,
+    ITEM_SPEC_STAT_CROSSBOW         = 17,
+    ITEM_SPEC_STAT_STAFF            = 18,
+    ITEM_SPEC_STAT_POLEARM          = 19,
+    ITEM_SPEC_STAT_THROWN           = 20,
+    ITEM_SPEC_STAT_WAND             = 21,
+    ITEM_SPEC_STAT_SHIELD           = 22,
+    ITEM_SPEC_STAT_RELIC            = 23,
+    ITEM_SPEC_STAT_CRIT             = 24,
+    ITEM_SPEC_STAT_HASTE            = 25,
+    ITEM_SPEC_STAT_BONUS_ARMOR      = 26,
+    ITEM_SPEC_STAT_CLOAK            = 27,
+
+    ITEM_SPEC_STAT_NONE             = 28
+};
+
+enum MountCapabilityFlags
+{
+    MOUNT_CAPABILITY_FLAG_CAN_PITCH     = 0x4,                    // client checks MOVEMENTFLAG2_FULL_SPEED_PITCHING
+    MOUNT_CAPABILITY_FLAG_CAN_SWIM      = 0x8,                    // client checks MOVEMENTFLAG_SWIMMING
+};
+
 enum MountFlags
 {
-    MOUNT_FLAG_CAN_PITCH                = 0x4,                    // client checks MOVEMENTFLAG2_FULL_SPEED_PITCHING
-    MOUNT_FLAG_CAN_SWIM                 = 0x8,                    // client checks MOVEMENTFLAG_SWIMMING
+    MOUNT_FLAG_SELF_MOUNT               = 0x02,                   // Player becomes the mount himself
+    MOUNT_FLAG_FACTION_SPECIFIC         = 0x04,
+    MOUNT_FLAG_PREFERRED_SWIMMING       = 0x10,
+    MOUNT_FLAG_PREFERRED_WATER_WALKING  = 0x20,
+    MOUNT_FLAG_HIDE_IF_UNKNOWN          = 0x40
+};
+
+enum QuestPackageFilter
+{
+    QUEST_PACKAGE_FILTER_LOOT_SPECIALIZATION    = 0,    // Players can select this quest reward if it matches their selected loot specialization
+    QUEST_PACKAGE_FILTER_CLASS                  = 1,    // Players can select this quest reward if it matches their class
+    QUEST_PACKAGE_FILTER_UNMATCHED              = 2,    // Players can select this quest reward if no class/loot_spec rewards are available
+    QUEST_PACKAGE_FILTER_EVERYONE               = 3     // Players can always select this quest reward
 };
 
 enum SkillRaceClassInfoFlags
@@ -459,7 +552,7 @@ enum SpellCategoryFlags
 {
     SPELL_CATEGORY_FLAG_COOLDOWN_SCALES_WITH_WEAPON_SPEED   = 0x01, // unused
     SPELL_CATEGORY_FLAG_COOLDOWN_STARTS_ON_EVENT            = 0x04,
-    SPELL_CATEGORY_FLAG_COOLDOWN_EXPIRES_AT_MIDNIGHT        = 0x08
+    SPELL_CATEGORY_FLAG_COOLDOWN_EXPIRES_AT_DAILY_RESET     = 0x08
 };
 
 enum TotemCategoryType
@@ -588,6 +681,7 @@ enum CurrencyTypes
     CURRENCY_TYPE_VALOR_POINTS          = 396,
     CURRENCY_TYPE_CONQUEST_META_ARENA   = 483,
     CURRENCY_TYPE_CONQUEST_META_RBG     = 484,
+    CURRENCY_TYPE_APEXIS_CRYSTALS       = 823,
 };
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -262,8 +262,8 @@ class GuildFinderMgr
         /// Counts the amount of pending membership requests, given the player's db guid.
         uint8 CountRequestsFromPlayer(ObjectGuid const& playerId);
 
-        void SendApplicantListUpdate(Guild& guild);
-        void SendMembershipRequestListUpdate(Player& player);
+        static void SendApplicantListUpdate(Guild* guild);
+        static void SendMembershipRequestListUpdate(Player* player);
 
         static GuildFinderMgr* instance()
         {

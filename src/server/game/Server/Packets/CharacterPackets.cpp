@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -17,6 +17,7 @@
 
 #include "CharacterPackets.h"
 #include "ObjectMgr.h"
+#include "PacketUtilities.h"
 #include "World.h"
 
 WorldPackets::Character::EnumCharactersResult::CharacterInfo::CharacterInfo(Field* fields)
@@ -45,7 +46,7 @@ WorldPackets::Character::EnumCharactersResult::CharacterInfo::CharacterInfo(Fiel
     PreLoadPosition.y = fields[11].GetFloat();
     PreLoadPosition.z = fields[12].GetFloat();
 
-    if (uint32 guildId = fields[13].GetUInt32())
+    if (ObjectGuid::LowType guildId = fields[13].GetUInt64())
         GuildGuid = ObjectGuid::Create<HighGuid::Guild>(guildId);
 
     uint32 playerFlags  = fields[14].GetUInt32();
@@ -99,28 +100,10 @@ WorldPackets::Character::EnumCharactersResult::CharacterInfo::CharacterInfo(Fiel
 
     for (uint8 slot = 0; slot < INVENTORY_SLOT_BAG_END; ++slot)
     {
-        uint32 visualBase = slot * 2;
-        uint32 itemId = Player::GetUInt32ValueFromArray(equipment, visualBase);
-        if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId))
-        {
-            uint32 enchants = Player::GetUInt32ValueFromArray(equipment, visualBase + 1);
-            for (uint8 enchantSlot = PERM_ENCHANTMENT_SLOT; enchantSlot <= TEMP_ENCHANTMENT_SLOT; ++enchantSlot)
-            {
-                // values stored in 2 uint16
-                uint32 enchantId = 0x0000FFFF & (enchants >> enchantSlot * 16);
-                if (!enchantId)
-                    continue;
-
-                if (SpellItemEnchantmentEntry const* enchant = sSpellItemEnchantmentStore.LookupEntry(enchantId))
-                {
-                    VisualItems[slot].DisplayEnchantId = enchant->ItemVisual;
-                    break;
-                }
-            }
-
-            VisualItems[slot].DisplayId = proto->DisplayInfoID;
-            VisualItems[slot].InventoryType = uint8(proto->InventoryType);
-        }
+        uint32 visualBase = slot * 3;
+        VisualItems[slot].InventoryType = Player::GetUInt32ValueFromArray(equipment, visualBase);
+        VisualItems[slot].DisplayId = Player::GetUInt32ValueFromArray(equipment, visualBase + 1);
+        VisualItems[slot].DisplayEnchantId = Player::GetUInt32ValueFromArray(equipment, visualBase + 2);
     }
 }
 
@@ -148,9 +131,7 @@ WorldPacket const* WorldPackets::Character::EnumCharactersResult::Write()
         _worldPacket << uint8(charInfo.Level);
         _worldPacket << int32(charInfo.ZoneId);
         _worldPacket << int32(charInfo.MapId);
-        _worldPacket << float(charInfo.PreLoadPosition.x);
-        _worldPacket << float(charInfo.PreLoadPosition.y);
-        _worldPacket << float(charInfo.PreLoadPosition.z);
+        _worldPacket << charInfo.PreLoadPosition;
         _worldPacket << charInfo.GuildGuid;
         _worldPacket << uint32(charInfo.Flags);
         _worldPacket << uint32(charInfo.CustomizationFlag);
@@ -172,6 +153,9 @@ WorldPacket const* WorldPackets::Character::EnumCharactersResult::Write()
         _worldPacket.WriteBits(charInfo.Name.length(), 6);
         _worldPacket.WriteBit(charInfo.FirstLogin);
         _worldPacket.WriteBit(charInfo.BoostInProgress);
+        _worldPacket.WriteBits(charInfo.unkWod61x, 5);
+        _worldPacket.FlushBits();
+
         _worldPacket.WriteString(charInfo.Name);
     }
 
@@ -184,11 +168,12 @@ WorldPacket const* WorldPackets::Character::EnumCharactersResult::Write()
     return &_worldPacket;
 }
 
-void WorldPackets::Character::CreateChar::Read()
+void WorldPackets::Character::CreateCharacter::Read()
 {
     CreateInfo.reset(new CharacterCreateInfo());
     uint32 nameLength = _worldPacket.ReadBits(6);
-    CreateInfo->TemplateSet.HasValue = _worldPacket.ReadBit();
+    bool const hasTemplateSet = _worldPacket.ReadBit();
+
     _worldPacket >> CreateInfo->Race;
     _worldPacket >> CreateInfo->Class;
     _worldPacket >> CreateInfo->Sex;
@@ -199,22 +184,22 @@ void WorldPackets::Character::CreateChar::Read()
     _worldPacket >> CreateInfo->FacialHairStyle;
     _worldPacket >> CreateInfo->OutfitId;
     CreateInfo->Name = _worldPacket.ReadString(nameLength);
-    if (CreateInfo->TemplateSet.HasValue)
-        _worldPacket >> CreateInfo->TemplateSet.Value;
+    if (hasTemplateSet)
+        CreateInfo->TemplateSet = _worldPacket.read<int32>();
 }
 
-WorldPacket const* WorldPackets::Character::CharacterCreateResponse::Write()
+WorldPacket const* WorldPackets::Character::CreateChar::Write()
 {
     _worldPacket << uint8(Code);
     return &_worldPacket;
 }
 
-void WorldPackets::Character::DeleteChar::Read()
+void WorldPackets::Character::CharDelete::Read()
 {
     _worldPacket >> Guid;
 }
 
-WorldPacket const* WorldPackets::Character::CharacterDeleteResponse::Write()
+WorldPacket const* WorldPackets::Character::DeleteChar::Write()
 {
     _worldPacket << uint8(Code);
     return &_worldPacket;
@@ -230,13 +215,15 @@ void WorldPackets::Character::CharacterRenameRequest::Read()
 WorldPacket const* WorldPackets::Character::CharacterRenameResult::Write()
 {
     _worldPacket << uint8(Result);
-    _worldPacket.WriteBit(Guid.HasValue);
+    _worldPacket.WriteBit(Guid.is_initialized());
     _worldPacket.WriteBits(Name.length(), 6);
+    _worldPacket.FlushBits();
 
-    if (Guid.HasValue)
-        _worldPacket << Guid.Value;
+    if (Guid)
+        _worldPacket << *Guid;
 
     _worldPacket.WriteString(Name);
+
     return &_worldPacket;
 }
 
@@ -261,11 +248,11 @@ void WorldPackets::Character::CharRaceOrFactionChange::Read()
 
     uint32 nameLength = _worldPacket.ReadBits(6);
 
-    RaceOrFactionChangeInfo->SkinID.HasValue = _worldPacket.ReadBit();
-    RaceOrFactionChangeInfo->HairColorID.HasValue = _worldPacket.ReadBit();
-    RaceOrFactionChangeInfo->HairStyleID.HasValue = _worldPacket.ReadBit();
-    RaceOrFactionChangeInfo->FacialHairStyleID.HasValue = _worldPacket.ReadBit();
-    RaceOrFactionChangeInfo->FaceID.HasValue = _worldPacket.ReadBit();
+    bool const hasSkinID = _worldPacket.ReadBit();
+    bool const hasHairColorID = _worldPacket.ReadBit();
+    bool const hasHairStyleID = _worldPacket.ReadBit();
+    bool const hasFacialHairStyleID = _worldPacket.ReadBit();
+    bool const hasFaceID = _worldPacket.ReadBit();
 
     _worldPacket >> RaceOrFactionChangeInfo->Guid;
     _worldPacket >> RaceOrFactionChangeInfo->SexID;
@@ -273,40 +260,40 @@ void WorldPackets::Character::CharRaceOrFactionChange::Read()
 
     RaceOrFactionChangeInfo->Name = _worldPacket.ReadString(nameLength);
 
-    if (RaceOrFactionChangeInfo->SkinID.HasValue)
-        _worldPacket >> RaceOrFactionChangeInfo->SkinID.Value;
+    if (hasSkinID)
+        RaceOrFactionChangeInfo->SkinID = _worldPacket.read<uint8>();
 
-    if (RaceOrFactionChangeInfo->HairColorID.HasValue)
-        _worldPacket >> RaceOrFactionChangeInfo->HairColorID.Value;
+    if (hasHairColorID)
+        RaceOrFactionChangeInfo->HairColorID = _worldPacket.read<uint8>();
 
-    if (RaceOrFactionChangeInfo->HairStyleID.HasValue)
-        _worldPacket >> RaceOrFactionChangeInfo->HairStyleID.Value;
+    if (hasHairStyleID)
+        RaceOrFactionChangeInfo->HairStyleID = _worldPacket.read<uint8>();
 
-    if (RaceOrFactionChangeInfo->FacialHairStyleID.HasValue)
-        _worldPacket >> RaceOrFactionChangeInfo->FacialHairStyleID.Value;
+    if (hasFacialHairStyleID)
+        RaceOrFactionChangeInfo->FacialHairStyleID = _worldPacket.read<uint8>();
 
-    if (RaceOrFactionChangeInfo->FaceID.HasValue)
-        _worldPacket >> RaceOrFactionChangeInfo->FaceID.Value;
+    if (hasFaceID)
+        RaceOrFactionChangeInfo->FaceID = _worldPacket.read<uint8>();
 }
 
 WorldPacket const* WorldPackets::Character::CharFactionChangeResult::Write()
 {
     _worldPacket << uint8(Result);
     _worldPacket << Guid;
-    _worldPacket.WriteBit(Display.HasValue);
+    _worldPacket.WriteBit(Display.is_initialized());
     _worldPacket.FlushBits();
 
-    if (Display.HasValue)
+    if (Display)
     {
-        _worldPacket.WriteBits(Display.Value.Name.length(), 6);
-        _worldPacket << uint8(Display.Value.SexID);
-        _worldPacket << uint8(Display.Value.SkinID);
-        _worldPacket << uint8(Display.Value.HairColorID);
-        _worldPacket << uint8(Display.Value.HairStyleID);
-        _worldPacket << uint8(Display.Value.FacialHairStyleID);
-        _worldPacket << uint8(Display.Value.FaceID);
-        _worldPacket << uint8(Display.Value.RaceID);
-        _worldPacket.WriteString(Display.Value.Name);
+        _worldPacket.WriteBits(Display->Name.length(), 6);
+        _worldPacket << uint8(Display->SexID);
+        _worldPacket << uint8(Display->SkinID);
+        _worldPacket << uint8(Display->HairColorID);
+        _worldPacket << uint8(Display->HairStyleID);
+        _worldPacket << uint8(Display->FacialHairStyleID);
+        _worldPacket << uint8(Display->FaceID);
+        _worldPacket << uint8(Display->RaceID);
+        _worldPacket.WriteString(Display->Name);
     }
 
     return &_worldPacket;
@@ -322,19 +309,21 @@ WorldPacket const* WorldPackets::Character::GenerateRandomCharacterNameResult::W
 {
     _worldPacket.WriteBit(Success);
     _worldPacket.WriteBits(Name.length(), 6);
+    _worldPacket.FlushBits();
+
     _worldPacket.WriteString(Name);
+
     return &_worldPacket;
 }
 
 void WorldPackets::Character::ReorderCharacters::Read()
 {
     uint32 count = std::min<uint32>(_worldPacket.ReadBits(9), sWorld->getIntConfig(CONFIG_CHARACTERS_PER_REALM));
-    while (count--)
+    Entries.resize(count);
+    for (ReorderInfo& reorderInfo : Entries)
     {
-        ReorderInfo reorderInfo;
         _worldPacket >> reorderInfo.PlayerGUID;
         _worldPacket >> reorderInfo.NewPosition;
-        Entries.emplace_back(reorderInfo);
     }
 }
 
@@ -376,6 +365,12 @@ WorldPacket const* WorldPackets::Character::LoginVerifyWorld::Write()
     return &_worldPacket;
 }
 
+WorldPacket const* WorldPackets::Character::CharacterLoginFailed::Write()
+{
+    _worldPacket << uint8(Code);
+    return &_worldPacket;
+}
+
 WorldPacket const* WorldPackets::Character::LogoutResponse::Write()
 {
     _worldPacket << int32(LogoutResult);
@@ -394,4 +389,112 @@ void WorldPackets::Character::LoadingScreenNotify::Read()
 {
     _worldPacket >> MapID;
     Showing = _worldPacket.ReadBit();
+}
+
+WorldPacket const* WorldPackets::Character::InitialSetup::Write()
+{
+    _worldPacket << uint8(ServerExpansionLevel);
+    _worldPacket << uint8(ServerExpansionTier);
+    _worldPacket << int32(ServerRegionID);
+    _worldPacket << uint32(RaidOrigin);
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Character::SetActionBarToggles::Read()
+{
+    _worldPacket >> Mask;
+}
+
+void WorldPackets::Character::RequestPlayedTime::Read()
+{
+    TriggerScriptEvent = _worldPacket.ReadBit();
+}
+
+WorldPacket const* WorldPackets::Character::PlayedTime::Write()
+{
+    _worldPacket << int32(TotalTime);
+    _worldPacket << int32(LevelTime);
+    _worldPacket.WriteBit(TriggerEvent);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Character::ShowingCloak::Read()
+{
+    ShowCloak = _worldPacket.ReadBit();
+}
+
+void WorldPackets::Character::ShowingHelm::Read()
+{
+    ShowHelm = _worldPacket.ReadBit();
+}
+
+void WorldPackets::Character::SetTitle::Read()
+{
+    _worldPacket >> TitleID;
+}
+
+void WorldPackets::Character::AlterApperance::Read()
+{
+    _worldPacket >> NewHairStyle;
+    _worldPacket >> NewHairColor;
+    _worldPacket >> NewFacialHair;
+    _worldPacket >> NewSkinColor;
+    _worldPacket >> NewFace;
+}
+
+WorldPacket const* WorldPackets::Character::BarberShopResultServer::Write()
+{
+    _worldPacket << int32(Result);
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Character::LogXPGain::Write()
+{
+    _worldPacket << Victim;
+    _worldPacket << int32(Original);
+    _worldPacket << uint8(Reason);
+    _worldPacket << int32(Amount);
+    _worldPacket << float(GroupBonus);
+    _worldPacket.WriteBit(ReferAFriend);
+
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Character::TitleEarned::Write()
+{
+    _worldPacket << uint32(Index);
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Character::SetFactionAtWar::Read()
+{
+    _worldPacket >> FactionIndex;
+}
+
+void WorldPackets::Character::SetFactionNotAtWar::Read()
+{
+    _worldPacket >> FactionIndex;
+}
+
+void WorldPackets::Character::SetFactionInactive::Read()
+{
+    _worldPacket >> Index;
+    State = _worldPacket.ReadBit();
+}
+
+void WorldPackets::Character::SetWatchedFaction::Read()
+{
+    _worldPacket >> FactionIndex;
+}
+
+WorldPacket const* WorldPackets::Character::SetFactionVisible::Write()
+{
+    _worldPacket << FactionIndex;
+    return &_worldPacket;
 }

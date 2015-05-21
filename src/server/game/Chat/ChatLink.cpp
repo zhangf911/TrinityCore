@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -121,9 +121,9 @@ bool ItemChatLink::Initialize(std::istringstream& iss)
         return false;
     }
     // Validate item's color
-    if (_color != ItemQualityColors[_item->Quality])
+    if (_color != ItemQualityColors[_item->GetQuality()])
     {
-        TC_LOG_TRACE("chat.system", "ChatHandler::isValidChatMessage('%s'): linked item has color %u, but user claims %u", iss.str().c_str(), ItemQualityColors[_item->Quality], _color);
+        TC_LOG_TRACE("chat.system", "ChatHandler::isValidChatMessage('%s'): linked item has color %u, but user claims %u", iss.str().c_str(), ItemQualityColors[_item->GetQuality()], _color);
         return false;
     }
     // Number of various item properties after item entry
@@ -167,13 +167,11 @@ bool ItemChatLink::Initialize(std::istringstream& iss)
     return true;
 }
 
-inline std::string ItemChatLink::FormatName(uint8 index, ItemLocale const* locale, char* suffixStrings) const
+inline std::string ItemChatLink::FormatName(uint8 index, char* suffixStrings) const
 {
     std::stringstream ss;
-    if (locale == NULL || index >= locale->Name.size())
-        ss << _item->Name1;
-    else
-        ss << locale->Name[index];
+    ss << _item->GetName(LocaleConstant(index));
+
     if (suffixStrings)
         ss << ' ' << suffixStrings[index];
     return ss.str();
@@ -185,13 +183,12 @@ bool ItemChatLink::ValidateName(char* buffer, const char* context)
 
     char* suffixStrings = _suffix ? _suffix->Name_lang : (_property ? _property->Name_lang : NULL);
 
-    bool res = (FormatName(LOCALE_enUS, NULL, suffixStrings) == buffer);
+    bool res = (FormatName(LOCALE_enUS, suffixStrings) == buffer);
     if (!res)
     {
-        ItemLocale const* il = sObjectMgr->GetItemLocale(_item->ItemId);
         for (uint8 index = LOCALE_koKR; index < TOTAL_LOCALES; ++index)
         {
-            if (FormatName(index, il, suffixStrings) == buffer)
+            if (FormatName(index, suffixStrings) == buffer)
             {
                 res = true;
                 break;
@@ -199,7 +196,7 @@ bool ItemChatLink::ValidateName(char* buffer, const char* context)
         }
     }
     if (!res)
-        TC_LOG_TRACE("chat.system", "ChatHandler::isValidChatMessage('%s'): linked item (id: %u) name wasn't found in any localization", context, _item->ItemId);
+        TC_LOG_TRACE("chat.system", "ChatHandler::isValidChatMessage('%s'): linked item (id: %u) name wasn't found in any localization", context, _item->GetId());
     return res;
 }
 
@@ -243,11 +240,11 @@ bool QuestChatLink::ValidateName(char* buffer, const char* context)
 {
     ChatLink::ValidateName(buffer, context);
 
-    bool res = (_quest->GetTitle() == buffer);
+    bool res = (_quest->GetLogTitle() == buffer);
     if (!res)
-        if (QuestLocale const* ql = sObjectMgr->GetQuestLocale(_quest->GetQuestId()))
-            for (uint8 i = 0; i < ql->Title.size(); i++)
-                if (ql->Title[i] == buffer)
+        if (QuestTemplateLocale const* ql = sObjectMgr->GetQuestLocale(_quest->GetQuestId()))
+            for (uint8 i = 0; i < ql->LogTitle.size(); i++)
+                if (ql->LogTitle[i] == buffer)
                 {
                     res = true;
                     break;
@@ -285,7 +282,7 @@ bool SpellChatLink::ValidateName(char* buffer, const char* context)
     ChatLink::ValidateName(buffer, context);
 
     // spells with that flag have a prefix of "$PROFESSION: "
-    if (_spell->Attributes & SPELL_ATTR0_TRADESPELL)
+    if (_spell->HasAttribute(SPELL_ATTR0_TRADESPELL))
     {
         SkillLineAbilityMapBounds bounds = sSpellMgr->GetSkillLineAbilityMapBounds(_spell->Id);
         if (bounds.first == bounds.second)

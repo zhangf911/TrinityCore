@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 TrintiyCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -18,26 +18,52 @@
 #ifndef TRINITY_DB2SFRM_H
 #define TRINITY_DB2SFRM_H
 
-char const HolidaysEntryfmt[]="niiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiixxsiix";
-char const Itemfmt[]="niiiiiiii";
-char const ItemAppearanceEntryfmt[]="nii";
-char const ItemCurrencyCostfmt[]="xn";
-char const ItemSparsefmt[]="niiiiffiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiifisssssiiiiiiiiiiiiiiiiiiifiiifiii";
-char const ItemExtendedCostEntryfmt[]="niiiiiiiiiiiiiiiiiiiiiiiiiiiii";
-char const ItemEffectEntryfmt[]="niiiiiiii";
-char const KeyChainfmt[]="nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-char const OverrideSpellDataEntryfmt[] = "niiiiiiiiiixx";
-char const PhaseGroupEntryfmt[] = "nii";
-char const SpellAuraRestrictionsEntryfmt[] = "diiiiiiii";
-char const SpellCastingRequirementsEntryfmt[] = "dixxixi";
-char const SpellClassOptionsEntryfmt[] = "niiiiii";
-char const SpellMiscEntryfmt[] = "niiiiiiiiiiiiiiiiifiiiiix";
-char const SpellPowerEntryfmt[] = "niiiiiixxxffix";
-char const SpellReagentsEntryfmt[] = "niiiiiiiiiiiiiiiixx";
-char const SpellRuneCostEntryfmt[] = "niiixi";
-char const SpellTotemsEntryfmt[] = "niiii";
-char const TaxiNodesEntryfmt[] = "nifffsiiiiff";
-char const TaxiPathEntryfmt[] = "niii";
-char const TaxiPathNodeEntryfmt[] = "niiifffiiii";
+char const AreaGroupFormat[] = "n";
+char const AreaGroupMemberFormat[] = "nii";
+char const BroadcastTextFormat[] = "nissiiiiiiiii";
+char const CurrencyTypesFormat[] = "nisssiiiiiis";
+char const CurvePointFormat[] = "niiff";
+char const GameObjectsFormat[] = "niiffffffffiiiiiiiiiiiis";
+char const GarrAbilityFormat[] = "nissiii";
+char const GarrBuildingFormat[] = "niiiiissssiiiiiiiiiiiiii";
+char const GarrBuildingPlotInstFormat[] = "niiiff";
+char const GarrClassSpecFormat[] = "nsssii";
+char const GarrFollowerFormat[] = "niiiiiiiiiiiiiissiiii";
+char const GarrFollowerXAbilityFormat[] = "niii";
+char const GarrPlotBuildingFormat[] = "nii";
+char const GarrPlotFormat[] = "niiisiiii";
+char const GarrPlotInstanceFormat[] = "nis";
+char const GarrSiteLevelFormat[] = "niiiiffiiii";
+char const GarrSiteLevelPlotInstFormat[] = "niiffi";
+char const HolidaysEntryFormat[] = "niiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiisiii";
+char const ItemFormat[] = "niiiiiiii";
+char const ItemAppearanceFormat[] = "nii";
+char const ItemBonusFormat[] = "niiiii";
+char const ItemBonusTreeNodeFormat[] = "niiii";
+char const ItemCurrencyCostFormat[] = "in";
+char const ItemExtendedCostFormat[] = "niiiiiiiiiiiiiiiiiiiiiiiiiiii";
+char const ItemEffectFormat[] = "niiiiiiii";
+char const ItemModifiedAppearanceFormat[] = "niiiii";
+char const ItemSparseFormat[] = "niiiiffiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiffffffffffiiifisssssiiiiiiiiiiiiiiiiiiifiiifiii";
+char const ItemXBonusTreeFormat[] = "nii";
+char const KeyChainFormat[] = "nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+char const MountFormat[] = "niiisssiii";
+char const OverrideSpellDataFormat[] = "niiiiiiiiiiii";
+char const PhaseXPhaseGroupFormat[] = "nii";
+char const QuestPackageItemfmt[] = "niiii";
+char const SoundEntriesFormat[] = "nisiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiififfiifffffii";
+char const SpellAuraRestrictionsFormat[] = "niiiiiiii";
+char const SpellCastingRequirementsFormat[] = "niiiiii";
+char const SpellClassOptionsFormat[] = "niiiiii";
+char const SpellLearnSpellFormat[] = "niii";
+char const SpellMiscFormat[] = "niiiiiiiiiiiiiiiiifiiiiif";
+char const SpellPowerFormat[] = "niiiiiiiiiffif";
+char const SpellPowerDifficultyFormat[] = "nii";
+char const SpellReagentsFormat[] = "niiiiiiiiiiiiiiiiii";
+char const SpellRuneCostFormat[] = "niiiii";
+char const SpellTotemsFormat[] = "niiii";
+char const TaxiNodesFormat[] = "nifffsiiiiiff";
+char const TaxiPathFormat[] = "niii";
+char const TaxiPathNodeFormat[] = "niiifffiiii";
 
 #endif

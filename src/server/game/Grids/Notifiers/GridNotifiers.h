@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ namespace Trinity
         Player &i_player;
         UpdateData i_data;
         std::set<Unit*> i_visibleNow;
-        GuidSet vis_guids;
+        GuidUnorderedSet vis_guids;
 
         VisibleNotifier(Player &player) : i_player(player), i_data(player.GetMapId()), vis_guids(player.m_clientGUIDs) { }
         template<class T> void Visit(GridRefManager<T> &m);
@@ -742,7 +742,7 @@ namespace Trinity
             GameObjectWithDbGUIDCheck(WorldObject const& /*obj*/, ObjectGuid::LowType db_guid) : i_db_guid(db_guid) { }
             bool operator()(GameObject const* go) const
             {
-                return go->GetDBTableGUIDLow() == i_db_guid;
+                return go->GetSpawnId() == i_db_guid;
             }
         private:
             ObjectGuid::LowType i_db_guid;
@@ -855,7 +855,7 @@ namespace Trinity
             CreatureWithDbGUIDCheck(WorldObject const* /*obj*/, ObjectGuid::LowType lowguid) : i_lowguid(lowguid) { }
             bool operator()(Creature* u)
             {
-                return u->GetDBTableGUIDLow() == i_lowguid;
+                return u->GetSpawnId() == i_lowguid;
             }
         private:
             ObjectGuid::LowType i_lowguid;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -157,12 +157,6 @@ class spell_argaloth_meteor_slash : public SpellScriptLoader
         {
             PrepareSpellScript(spell_argaloth_meteor_slash_SpellScript);
 
-            bool Load() override
-            {
-                _targetCount = 0;
-                return true;
-            }
-
             void CountTargets(std::list<WorldObject*>& targets)
             {
                 _targetCount = targets.size();
@@ -183,7 +177,7 @@ class spell_argaloth_meteor_slash : public SpellScriptLoader
             }
 
         private:
-            uint32 _targetCount;
+            uint32 _targetCount = 0;
         };
 
         SpellScript* GetSpellScript() const override

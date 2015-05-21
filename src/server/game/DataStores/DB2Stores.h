@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 TrintiyCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,45 +20,118 @@
 
 #include "DB2Store.h"
 #include "DB2Structure.h"
-#include <string>
-#include <map>
+#include "SharedDefines.h"
 
-extern DB2Storage<HolidaysEntry>                sHolidaysStore;
-extern DB2Storage<ItemEntry>                    sItemStore;
-extern DB2Storage<ItemAppearanceEntry>          sItemAppearanceStore;
-extern ItemDisplayIDMap                         sItemDisplayIDMap;
-extern DB2Storage<ItemCurrencyCostEntry>        sItemCurrencyCostStore;
-extern DB2Storage<ItemExtendedCostEntry>        sItemExtendedCostStore;
-extern DB2Storage<ItemEffectEntry>              sItemEffectStore;
-extern DB2Storage<ItemSparseEntry>              sItemSparseStore;
-extern DB2Storage<KeyChainEntry>                sKeyChainStore;
-extern DB2Storage<OverrideSpellDataEntry>       sOverrideSpellDataStore;
-extern DB2Storage<PhaseGroupEntry>              sPhaseGroupStore;
-extern DB2Storage<SpellAuraRestrictionsEntry>   sSpellAuraRestrictionsStore;
+extern DB2Storage<BroadcastTextEntry>            sBroadcastTextStore;
+extern DB2Storage<CurrencyTypesEntry>            sCurrencyTypesStore;
+extern DB2Storage<GameObjectsEntry>              sGameObjectsStore;
+extern DB2Storage<GarrAbilityEntry>              sGarrAbilityStore;
+extern DB2Storage<GarrBuildingEntry>             sGarrBuildingStore;
+extern DB2Storage<GarrBuildingPlotInstEntry>     sGarrBuildingPlotInstStore;
+extern DB2Storage<GarrClassSpecEntry>            sGarrClassSpecStore;
+extern DB2Storage<GarrFollowerEntry>             sGarrFollowerStore;
+extern DB2Storage<GarrFollowerXAbilityEntry>     sGarrFollowerXAbilityStore;
+extern DB2Storage<GarrPlotBuildingEntry>         sGarrPlotBuildingStore;
+extern DB2Storage<GarrPlotEntry>                 sGarrPlotStore;
+extern DB2Storage<GarrPlotInstanceEntry>         sGarrPlotInstanceStore;
+extern DB2Storage<GarrSiteLevelEntry>            sGarrSiteLevelStore;
+extern DB2Storage<GarrSiteLevelPlotInstEntry>    sGarrSiteLevelPlotInstStore;
+extern DB2Storage<HolidaysEntry>                 sHolidaysStore;
+extern DB2Storage<ItemCurrencyCostEntry>         sItemCurrencyCostStore;
+extern DB2Storage<ItemEffectEntry>               sItemEffectStore;
+extern DB2Storage<ItemEntry>                     sItemStore;
+extern DB2Storage<ItemExtendedCostEntry>         sItemExtendedCostStore;
+extern DB2Storage<ItemSparseEntry>               sItemSparseStore;
+extern DB2Storage<OverrideSpellDataEntry>        sOverrideSpellDataStore;
+extern DB2Storage<SoundEntriesEntry>             sSoundEntriesStore;
+extern DB2Storage<SpellAuraRestrictionsEntry>    sSpellAuraRestrictionsStore;
 extern DB2Storage<SpellCastingRequirementsEntry> sSpellCastingRequirementsStore;
-extern DB2Storage<SpellClassOptionsEntry>       sSpellClassOptionsStore;
-extern DB2Storage<SpellMiscEntry>               sSpellMiscStore;
-extern DB2Storage<SpellPowerEntry>              sSpellPowerStore;
-extern DB2Storage<SpellReagentsEntry>           sSpellReagentsStore;
-extern DB2Storage<SpellRuneCostEntry>           sSpellRuneCostStore;
-extern DB2Storage<SpellTotemsEntry>             sSpellTotemsStore;
-extern DB2Storage<TaxiNodesEntry>               sTaxiNodesStore;
-extern DB2Storage<TaxiPathEntry>                sTaxiPathStore;
-extern DB2Storage<TaxiPathNodeEntry>            sTaxiPathNodeStore;
-extern TaxiMask                                 sTaxiNodesMask;
-extern TaxiMask                                 sOldContinentsNodesMask;
-extern TaxiMask                                 sHordeTaxiNodesMask;
-extern TaxiMask                                 sAllianceTaxiNodesMask;
-extern TaxiMask                                 sDeathKnightTaxiNodesMask;
-extern TaxiPathSetBySource                      sTaxiPathSetBySource;
-extern TaxiPathNodesByPath                      sTaxiPathNodesByPath;
+extern DB2Storage<SpellClassOptionsEntry>        sSpellClassOptionsStore;
+extern DB2Storage<SpellLearnSpellEntry>          sSpellLearnSpellStore;
+extern DB2Storage<SpellMiscEntry>                sSpellMiscStore;
+extern DB2Storage<SpellPowerEntry>               sSpellPowerStore;
+extern DB2Storage<SpellReagentsEntry>            sSpellReagentsStore;
+extern DB2Storage<SpellRuneCostEntry>            sSpellRuneCostStore;
+extern DB2Storage<SpellTotemsEntry>              sSpellTotemsStore;
+extern DB2Storage<TaxiNodesEntry>                sTaxiNodesStore;
+extern DB2Storage<TaxiPathEntry>                 sTaxiPathStore;
 
-void LoadDB2Stores(std::string const& dataPath);
+extern TaxiMask                                  sTaxiNodesMask;
+extern TaxiMask                                  sOldContinentsNodesMask;
+extern TaxiMask                                  sHordeTaxiNodesMask;
+extern TaxiMask                                  sAllianceTaxiNodesMask;
+extern TaxiMask                                  sDeathKnightTaxiNodesMask;
+extern TaxiPathSetBySource                       sTaxiPathSetBySource;
+extern TaxiPathNodesByPath                       sTaxiPathNodesByPath;
 
-DB2StorageBase const* GetDB2Storage(uint32 type);
+struct HotfixNotify
+{
+    uint32 TableHash;
+    uint32 Timestamp;
+    uint32 Entry;
+};
 
-uint32 GetItemDisplayID(uint32 appearanceID);
+typedef std::vector<HotfixNotify> HotfixData;
 
-std::set<uint32> const& GetPhasesForGroup(uint32 group);
+class DB2Manager
+{
+public:
+    typedef std::map<uint32 /*hash*/, DB2StorageBase*> StorageMap;
+    typedef std::unordered_map<uint32 /*areaGroupId*/, std::vector<uint32/*areaId*/>> AreaGroupMemberContainer;
+    typedef std::map<uint32 /*curveID*/, std::map<uint32/*index*/, CurvePointEntry const*, std::greater<uint32>>> HeirloomCurvesContainer;
+    typedef std::vector<ItemBonusEntry const*> ItemBonusList;
+    typedef std::unordered_map<uint32 /*bonusListId*/, ItemBonusList> ItemBonusListContainer;
+    typedef std::unordered_multimap<uint32 /*itemId*/, uint32 /*bonusTreeId*/> ItemToBonusTreeContainer;
+    typedef std::unordered_map<uint32 /*itemId | appearanceMod << 24*/, uint32> ItemDisplayIdContainer;
+    typedef std::unordered_map<uint32, std::set<ItemBonusTreeNodeEntry const*>> ItemBonusTreeContainer;
+    typedef std::unordered_map<uint32, MountEntry const*> MountContainer;
+    typedef std::unordered_map<uint32, std::set<uint32>> PhaseGroupContainer;
+    typedef std::unordered_map<uint32, std::vector<QuestPackageItemEntry const*>> QuestPackageItemContainer;
+    typedef std::unordered_map<uint32, std::vector<SpellPowerEntry const*>> SpellPowerContainer;
+    typedef std::unordered_map<uint32, std::unordered_map<uint32, std::vector<SpellPowerEntry const*>>> SpellPowerDifficultyContainer;
+
+    static DB2Manager& Instance()
+    {
+        static DB2Manager instance;
+        return instance;
+    }
+
+    void LoadStores(std::string const& dataPath);
+    DB2StorageBase const* GetStorage(uint32 type) const;
+
+    void LoadHotfixData();
+    HotfixData const* GetHotfixData() const { return &_hotfixData; }
+    time_t GetHotfixDate(uint32 entry, uint32 type) const;
+
+    std::vector<uint32> GetAreasForGroup(uint32 areaGroupId) const;
+    static char const* GetBroadcastTextValue(BroadcastTextEntry const* broadcastText, LocaleConstant locale = DEFAULT_LOCALE, uint8 gender = GENDER_MALE, bool forceGender = false);
+    uint32 GetHeirloomItemLevel(uint32 curveId, uint32 level) const;
+    ItemBonusList GetItemBonusList(uint32 bonusListId) const;
+    std::set<uint32> GetItemBonusTree(uint32 itemId, uint32 itemBonusTreeMod) const;
+    uint32 GetItemDisplayId(uint32 itemId, uint32 appearanceModId) const;
+    MountEntry const* GetMount(uint32 spellId) const;
+    MountEntry const* GetMountById(uint32 id) const;
+    std::vector<QuestPackageItemEntry const*> const* GetQuestPackageItems(uint32 questPackageID) const;
+    std::set<uint32> GetPhasesForGroup(uint32 group) const;
+    std::vector<SpellPowerEntry const*> GetSpellPowers(uint32 spellId, Difficulty difficulty = DIFFICULTY_NONE, bool* hasDifficultyPowers = nullptr) const;
+
+private:
+    StorageMap _stores;
+    HotfixData _hotfixData;
+
+    AreaGroupMemberContainer _areaGroupMembers;
+    HeirloomCurvesContainer _heirloomCurvePoints;
+    ItemBonusListContainer _itemBonusLists;
+    ItemBonusTreeContainer _itemBonusTrees;
+    ItemDisplayIdContainer _itemDisplayIDs;
+    ItemToBonusTreeContainer _itemToBonusTree;
+    MountContainer _mountsBySpellId;
+    PhaseGroupContainer _phasesByGroup;
+    QuestPackageItemContainer _questPackages;
+    SpellPowerContainer _spellPowers;
+    SpellPowerDifficultyContainer _spellPowerDifficulties;
+};
+
+#define sDB2Manager DB2Manager::Instance()
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #include "Errors.h" // for ASSERT
 #include <stdarg.h>
 #include <boost/thread/tss.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 
 #if COMPILER == COMPILER_GNU
   #include <sys/socket.h>
@@ -197,7 +198,7 @@ int64 MoneyStringToMoney(const std::string& moneyString)
         if (gCount + sCount + cCount != 1)
             return 0;
 
-        uint64 amount = atol(*itr);
+        uint64 amount = atoull(*itr);
         if (gCount == 1)
             money += amount * 100 * 100;
         else if (sCount == 1)
@@ -604,4 +605,10 @@ void HexStrToByteArray(std::string const& str, uint8* out, bool reverse /*= fals
         char buffer[3] = { str[i], str[i + 1], '\0' };
         out[j++] = strtoul(buffer, NULL, 16);
     }
+}
+
+bool StringToBool(std::string const& str)
+{
+    std::string lowerStr = boost::algorithm::to_lower_copy(str);
+    return lowerStr == "1" || lowerStr == "true" || lowerStr == "yes";
 }

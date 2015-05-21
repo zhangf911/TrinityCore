@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -231,7 +231,7 @@ class boss_selin_fireheart : public CreatureScript
                     }
                 }
 
-                if (me->GetPower(POWER_MANA) * 100 / me->GetMaxPower(POWER_MANA) < 10)
+                if (me->GetPowerPct(POWER_MANA) < 10.f)
                 {
                     if (events.IsInPhase(PHASE_NORMAL) && !_scheduledEvents)
                     {

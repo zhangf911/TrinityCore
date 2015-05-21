@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -31,7 +31,7 @@ namespace Trinity
         template<class T>
         void RandomResizeList(std::list<T> &list, uint32 size)
         {
-            size_t list_size = list.size();
+            uint32 list_size = uint32(list.size());
 
             while (list_size > size)
             {
@@ -61,7 +61,7 @@ namespace Trinity
         template <class C> typename C::value_type const& SelectRandomContainerElement(C const& container)
         {
             typename C::const_iterator it = container.begin();
-            std::advance(it, urand(0, container.size() - 1));
+            std::advance(it, urand(0, uint32(container.size()) - 1));
             return *it;
         }
 
@@ -91,6 +91,19 @@ namespace Trinity
             }
 
             return false;
+        }
+
+        template<class K, class V, template<class, class, class...> class M, class... Rest>
+        void MultimapErasePair(M<K, V, Rest...>& multimap, K const& key, V const& value)
+        {
+            auto range = multimap.equal_range(key);
+            for (auto itr = range.first; itr != range.second;)
+            {
+                if (itr->second == value)
+                    itr = multimap.erase(itr);
+                else
+                    ++itr;
+            }
         }
     }
     //! namespace Containers

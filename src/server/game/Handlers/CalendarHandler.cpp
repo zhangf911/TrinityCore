@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -51,7 +51,7 @@ Copied events should probably have a new owner
 void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recvData*/)
 {
     ObjectGuid guid = _player->GetGUID();
-    TC_LOG_DEBUG("network", "CMSG_CALENDAR_GET_CALENDAR [%s]", guid.ToString().c_str());
+    TC_LOG_DEBUG("network", "CMSG_CALENDAR_GET [%s]", guid.ToString().c_str());
 
     time_t currTime = time(NULL);
 
@@ -111,7 +111,7 @@ void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recvData*/)
             {
                 InstanceSave const* save = itr->second.save;
                 dataBuffer << uint32(save->GetMapId());
-                dataBuffer << uint32(save->GetDifficulty());
+                dataBuffer << uint32(save->GetDifficultyID());
                 dataBuffer << uint32(save->GetResetTime() - currTime);
                 dataBuffer << uint64(save->GetInstanceId());     // instance save id as unique instance copy id
                 ++boundCounter;
@@ -173,7 +173,7 @@ void WorldSession::HandleCalendarGetCalendar(WorldPacket& /*recvData*/)
         for (uint8 j = 0; j < MAX_HOLIDAY_FLAGS; ++j)
             data << uint32(holiday->CalendarFlags[j]);      // 10 * m_calendarFlags
 
-        data << holiday->TextureFilename;                   // m_textureFilename (holiday name)
+        data << holiday->TextureFilename->Str[sWorld->GetDefaultDbcLocale()]; // m_textureFilename (holiday name)
     }
 
     SendPacket(&data);
@@ -206,17 +206,6 @@ void WorldSession::HandleCalendarGuildFilter(WorldPacket& recvData)
         guild->MassInviteToEvent(this, minLevel, maxLevel, minRank);
 
     TC_LOG_DEBUG("network", "CMSG_CALENDAR_GUILD_FILTER: Min level [%d], Max level [%d], Min rank [%d]", minLevel, maxLevel, minRank);
-}
-
-void WorldSession::HandleCalendarArenaTeam(WorldPacket& recvData)
-{
-    TC_LOG_DEBUG("network", "CMSG_CALENDAR_ARENA_TEAM [%s]", _player->GetGUID().ToString().c_str());
-
-    uint32 arenaTeamId;
-    recvData >> arenaTeamId;
-
-    if (ArenaTeam* team = sArenaTeamMgr->GetArenaTeamById(arenaTeamId))
-        team->MassInviteToEvent(this);
 }
 
 void WorldSession::HandleCalendarAddEvent(WorldPacket& recvData)
@@ -585,7 +574,7 @@ void WorldSession::HandleCalendarEventRemoveInvite(WorldPacket& recvData)
     recvData >> invitee.ReadAsPacked();
     recvData >> inviteId >> ownerInviteId >> eventId;
 
-    TC_LOG_DEBUG("network", "CMSG_CALENDAR_EVENT_REMOVE_INVITE [%s] EventId [" UI64FMTD
+    TC_LOG_DEBUG("network", "CMSG_CALENDAR_REMOVE_INVITE [%s] EventId [" UI64FMTD
         "], ownerInviteId [" UI64FMTD "], Invitee ([%s] id: [" UI64FMTD "])",
         guid.ToString().c_str(), eventId, ownerInviteId, invitee.ToString().c_str(), inviteId);
 
@@ -726,7 +715,7 @@ void WorldSession::SendCalendarRaidLockout(InstanceSave const* save, bool add)
     }
 
     data << uint32(save->GetMapId());
-    data << uint32(save->GetDifficulty());
+    data << uint32(save->GetDifficultyID());
     data << uint32(save->GetResetTime() - currTime);
     data << uint64(save->GetInstanceId());
     SendPacket(&data);
@@ -739,14 +728,14 @@ void WorldSession::SendCalendarRaidLockoutUpdated(InstanceSave const* save)
 
     ObjectGuid guid = _player->GetGUID();
     TC_LOG_DEBUG("network", "SMSG_CALENDAR_RAID_LOCKOUT_UPDATED [%s] Map: %u, Difficulty %u",
-        guid.ToString().c_str(), save->GetMapId(), save->GetDifficulty());
+        guid.ToString().c_str(), save->GetMapId(), save->GetDifficultyID());
 
     time_t currTime = time(NULL);
 
     WorldPacket data(SMSG_CALENDAR_RAID_LOCKOUT_UPDATED, 4 + 4 + 4 + 4 + 8);
     data.AppendPackedTime(currTime);
     data << uint32(save->GetMapId());
-    data << uint32(save->GetDifficulty());
+    data << uint32(save->GetDifficultyID());
     data << uint32(0); // Amount of seconds that has changed to the reset time
     data << uint32(save->GetResetTime() - currTime);
     SendPacket(&data);

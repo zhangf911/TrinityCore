@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -418,7 +418,7 @@ class spell_oculus_ride_ruby_emerald_amber_drake_que : public SpellScriptLoader
                 // caster of the triggered spell is wrong for an unknown reason, handle it here correctly
                 PreventDefaultAction();
                 if (Unit* caster = GetCaster())
-                    GetTarget()->CastSpell(caster, GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell, true);
+                    GetTarget()->CastSpell(caster, aurEff->GetSpellEffectInfo()->TriggerSpell, true);
             }
 
             void Register() override

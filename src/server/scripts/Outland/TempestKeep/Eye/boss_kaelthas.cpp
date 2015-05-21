@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -535,7 +535,7 @@ class boss_kaelthas : public CreatureScript
                             case 2:
                                 Advisor = (ObjectAccessor::GetCreature(*me, m_auiAdvisorGuid[0]));
 
-                                if (Advisor && (Advisor->getStandState() == UNIT_STAND_STATE_DEAD))
+                                if (Advisor && (Advisor->GetStandState() == UNIT_STAND_STATE_DEAD))
                                 {
                                     Talk(SAY_INTRO_SANGUINAR);
 
@@ -569,7 +569,7 @@ class boss_kaelthas : public CreatureScript
                             case 4:
                                 Advisor = (ObjectAccessor::GetCreature(*me, m_auiAdvisorGuid[1]));
 
-                                if (Advisor && (Advisor->getStandState() == UNIT_STAND_STATE_DEAD))
+                                if (Advisor && (Advisor->GetStandState() == UNIT_STAND_STATE_DEAD))
                                 {
                                     Talk(SAY_INTRO_CAPERNIAN);
 
@@ -603,7 +603,7 @@ class boss_kaelthas : public CreatureScript
                             case 6:
                                 Advisor = (ObjectAccessor::GetCreature(*me, m_auiAdvisorGuid[2]));
 
-                                if (Advisor && (Advisor->getStandState() == UNIT_STAND_STATE_DEAD))
+                                if (Advisor && (Advisor->GetStandState() == UNIT_STAND_STATE_DEAD))
                                 {
                                     Talk(SAY_INTRO_TELONICUS);
 
@@ -638,7 +638,7 @@ class boss_kaelthas : public CreatureScript
                             case 8:
                                 Advisor = (ObjectAccessor::GetCreature(*me, m_auiAdvisorGuid[3]));
 
-                                if (Advisor && (Advisor->getStandState() == UNIT_STAND_STATE_DEAD))
+                                if (Advisor && (Advisor->GetStandState() == UNIT_STAND_STATE_DEAD))
                                 {
                                     Phase = 2;
                                     instance->SetData(DATA_KAELTHASEVENT, 2);

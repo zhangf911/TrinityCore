@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -15,7 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef ReputationPackets_h__
+#define ReputationPackets_h__
 
 #include "Packet.h"
 
@@ -44,5 +45,31 @@ namespace WorldPackets
             bool FactionHasBonus[FactionCount]; ///< @todo: implement faction bonus
             uint8 FactionFlags[FactionCount]; ///< @see enum FactionFlags
         };
+
+        class RequestForcedReactions final : public ClientPacket
+        {
+        public:
+            RequestForcedReactions(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_FORCED_REACTIONS, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        struct ForcedReaction
+        {
+            int32 Faction = 0;
+            int32 Reaction = 0;
+        };
+
+        class SetForcedReactions final : public ServerPacket
+        {
+        public:
+            SetForcedReactions() : ServerPacket(SMSG_SET_FORCED_REACTIONS) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<ForcedReaction> Reactions;
+        };
     }
 }
+
+#endif // ReputationPackets_h__

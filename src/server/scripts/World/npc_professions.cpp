@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2014 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2015 TrinityCore <http://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -234,9 +234,12 @@ bool EquippedOk(Player* player, uint32 spellId)
     if (!spell)
         return false;
 
-    for (uint8 i = 0; i < 3; ++i)
+    for (SpellEffectInfo const* effect : spell->GetEffectsForDifficulty(DIFFICULTY_NONE))
     {
-        uint32 reqSpell = spell->Effects[i].TriggerSpell;
+        if (!effect)
+            continue;
+
+        uint32 reqSpell = effect->TriggerSpell;
         if (!reqSpell)
             continue;
 
@@ -244,7 +247,7 @@ bool EquippedOk(Player* player, uint32 spellId)
         for (uint8 j = EQUIPMENT_SLOT_START; j < EQUIPMENT_SLOT_END; ++j)
         {
             item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, j);
-            if (item && item->GetTemplate()->RequiredSpell == reqSpell)
+            if (item && item->GetTemplate()->GetRequiredSpell() == reqSpell)
             {
                 //player has item equipped that require specialty. Not allow to unlearn, player has to unequip first
                 TC_LOG_DEBUG("scripts", "player attempt to unlearn spell %u, but item %u is equipped.", reqSpell, item->GetEntry());
